@@ -53,7 +53,7 @@ class HomeViewModel: ObservableObject {
     // MARK: - Dependencies
     
     private let ocrManager = OCRManager()
-    private let firebaseService = FirebaseService()
+    private let firebaseService = FirebaseService.shared
     
     // MARK: - Computed Properties
     
