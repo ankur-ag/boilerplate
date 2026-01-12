@@ -9,15 +9,21 @@ import SwiftUI
 
 /// Main tab navigation container for RoastGPT Clone
 struct MainTabView: View {
-    @State private var selectedTab: Tab = .home
+    @State private var selectedTab: Tab = .text
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            HomeView()
+            TextRoastView()
                 .tabItem {
-                    Label("Roast", systemImage: "flame.fill")
+                    Label("Text", systemImage: "text.quote")
                 }
-                .tag(Tab.home)
+                .tag(Tab.text)
+            
+            ImageRoastView()
+                .tabItem {
+                    Label("Image", systemImage: "photo")
+                }
+                .tag(Tab.image)
             
             HistoryView()
                 .tabItem {
@@ -32,6 +38,7 @@ struct MainTabView: View {
 // MARK: - Tab Enum
 
 enum Tab {
-    case home
+    case text
+    case image
     case history
 }
