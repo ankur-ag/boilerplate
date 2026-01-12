@@ -11,7 +11,7 @@ import UIKit
 
 // MARK: - Roast Session
 
-struct RoastSession: Identifiable, Codable {
+struct RoastSession: Identifiable, Codable, Equatable {
     let id: String
     let userId: String
     let inputText: String

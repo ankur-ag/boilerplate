@@ -91,21 +91,18 @@ class FirebaseService {
     
     // MARK: - Image Storage
     
-    /// Upload image to Firebase Storage
+    /// Upload image data to Firebase Storage
     /// Path: images/{userId}/{sessionId}.jpg
-    func uploadImage(_ image: UIImage, userId: String, sessionId: String) async throws -> String {
+    func uploadImage(_ imageData: Data, userId: String, sessionId: String) async throws -> String {
         // TODO: Implement Firebase Storage upload
         // Example:
         // let storage = Storage.storage()
         // let ref = storage.reference().child("images/\(userId)/\(sessionId).jpg")
-        // guard let imageData = image.jpegData(compressionQuality: 0.8) else {
-        //     throw FirebaseServiceError.imageConversionFailed
-        // }
         // _ = try await ref.putDataAsync(imageData)
         // let url = try await ref.downloadURL()
         // return url.absoluteString
         
-        print("📤 [Firebase] Uploading image for session: \(sessionId)")
+        print("📤 [Firebase] Uploading image for session: \(sessionId) (\(imageData.count) bytes)")
         
         // Return mock URL
         return "https://firebasestorage.googleapis.com/mock/\(sessionId).jpg"

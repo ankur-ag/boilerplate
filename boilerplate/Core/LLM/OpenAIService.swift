@@ -182,10 +182,14 @@ private struct OpenAIChatRequest: Codable {
 private struct OpenAIMessage: Codable {
     let role: String
     let content: String?
+    let refusal: String?
+    let annotations: [String]?
     
     init(role: String, content: String) {
         self.role = role
         self.content = content
+        self.refusal = nil
+        self.annotations = nil
     }
 }
 
@@ -196,17 +200,35 @@ private struct OpenAIChatResponse: Codable {
     let model: String
     let choices: [OpenAIChoice]
     let usage: OpenAIUsage
+    let serviceTier: String?
+    let systemFingerprint: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id, object, created, model, choices, usage
+        case serviceTier = "service_tier"
+        case systemFingerprint = "system_fingerprint"
+    }
 }
 
 private struct OpenAIChoice: Codable {
     let index: Int
     let message: OpenAIMessage
     let finishReason: String?
+    let logprobs: String?
     
     enum CodingKeys: String, CodingKey {
         case index
         case message
         case finishReason = "finish_reason"
+        case logprobs
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        index = try container.decode(Int.self, forKey: .index)
+        message = try container.decode(OpenAIMessage.self, forKey: .message)
+        finishReason = try? container.decode(String.self, forKey: .finishReason)
+        logprobs = try? container.decode(String.self, forKey: .logprobs)
     }
 }
 
@@ -214,11 +236,42 @@ private struct OpenAIUsage: Codable {
     let promptTokens: Int
     let completionTokens: Int
     let totalTokens: Int
+    let promptTokensDetails: TokenDetails?
+    let completionTokensDetails: TokenDetails?
+    
+    struct TokenDetails: Codable {
+        let cachedTokens: Int?
+        let audioTokens: Int?
+        let reasoningTokens: Int?
+        let acceptedPredictionTokens: Int?
+        let rejectedPredictionTokens: Int?
+        
+        enum CodingKeys: String, CodingKey {
+            case cachedTokens = "cached_tokens"
+            case audioTokens = "audio_tokens"
+            case reasoningTokens = "reasoning_tokens"
+            case acceptedPredictionTokens = "accepted_prediction_tokens"
+            case rejectedPredictionTokens = "rejected_prediction_tokens"
+        }
+    }
     
     enum CodingKeys: String, CodingKey {
         case promptTokens = "prompt_tokens"
         case completionTokens = "completion_tokens"
         case totalTokens = "total_tokens"
+        case promptTokensDetails = "prompt_tokens_details"
+        case completionTokensDetails = "completion_tokens_details"
+    }
+    
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        
+        // Provide default values if fields are missing
+        promptTokens = (try? container.decode(Int.self, forKey: .promptTokens)) ?? 0
+        completionTokens = (try? container.decode(Int.self, forKey: .completionTokens)) ?? 0
+        totalTokens = (try? container.decode(Int.self, forKey: .totalTokens)) ?? 0
+        promptTokensDetails = try? container.decode(TokenDetails.self, forKey: .promptTokensDetails)
+        completionTokensDetails = try? container.decode(TokenDetails.self, forKey: .completionTokensDetails)
     }
 }
 

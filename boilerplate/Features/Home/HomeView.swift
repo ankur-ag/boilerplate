@@ -57,8 +57,10 @@ struct HomeView: View {
                     Text(error.localizedDescription)
                 }
             }
-            .task {
-                await viewModel.processSelectedPhoto()
+            .onChange(of: viewModel.selectedPhoto) { oldValue, newValue in
+                Task {
+                    await viewModel.processSelectedPhoto()
+                }
             }
         }
     }
@@ -147,21 +149,37 @@ struct HomeView: View {
                 .padding()
             }
             
-            // Extracted Text Preview
-            if let ocrText = viewModel.extractedText, !ocrText.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Extracted Text:")
-                        .font(.caption)
-                        .fontWeight(.medium)
-                        .foregroundColor(.secondary)
+            // OCR Result or No Text Message
+            if viewModel.uploadedImage != nil && !viewModel.isExtractingText {
+                if let ocrText = viewModel.extractedText, !ocrText.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Extracted Text:")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                            .foregroundColor(.secondary)
                     
-                    Text(ocrText)
-                        .font(.caption)
-                        .padding(12)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        ScrollView {
+                            Text(ocrText)
+                                .font(.caption)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(12)
+                        }
+                        .frame(maxHeight: 120)
                         .background(Color.gray.opacity(0.1))
                         .cornerRadius(8)
-                        .lineLimit(5)
+                    }
+                } else {
+                    // No text found - show helpful message
+                    HStack(spacing: 8) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.orange)
+                        Text("No text found in image. You can still enter text manually above.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(8)
                 }
             }
         }

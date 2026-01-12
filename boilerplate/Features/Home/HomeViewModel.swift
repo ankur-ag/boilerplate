@@ -10,6 +10,30 @@ import Foundation
 import SwiftUI
 import PhotosUI
 
+// MARK: - Conversation Model (for backward compatibility with PromptViewModel)
+
+struct Conversation: Identifiable {
+    let id: String
+    let title: String
+    let preview: String
+    let timestamp: Date
+    let messages: [LLMMessage]
+    
+    init(
+        id: String = UUID().uuidString,
+        title: String,
+        preview: String,
+        timestamp: Date = Date(),
+        messages: [LLMMessage] = []
+    ) {
+        self.id = id
+        self.title = title
+        self.preview = preview
+        self.timestamp = timestamp
+        self.messages = messages
+    }
+}
+
 @MainActor
 class HomeViewModel: ObservableObject {
     // MARK: - Published Properties
@@ -55,17 +79,23 @@ class HomeViewModel: ObservableObject {
     // MARK: - Image Processing
     
     func processSelectedPhoto() async {
-        guard let photo = selectedPhoto else { return }
+        guard let photo = selectedPhoto else {
+            return
+        }
+        
+        // Clear selectedPhoto immediately to avoid re-triggering onChange
+        // Store reference before clearing
+        let photoToProcess = photo
+        selectedPhoto = nil
         
         do {
             // Load image data
-            guard let data = try await photo.loadTransferable(type: Data.self),
+            guard let data = try await photoToProcess.loadTransferable(type: Data.self),
                   let image = UIImage(data: data) else {
                 return
             }
             
             uploadedImage = image
-            selectedPhoto = nil
             
             // Extract text using OCR
             await extractTextFromImage(image)
@@ -81,11 +111,23 @@ class HomeViewModel: ObservableObject {
         do {
             let text = try await ocrManager.recognizeText(from: image)
             let cleaned = ocrManager.cleanExtractedText(text)
+            
             extractedText = cleaned
             
             // Clear manual input when we have OCR text
-            inputText = ""
+            if !cleaned.isEmpty {
+                inputText = ""
+            }
             
+        } catch let error as OCRError {
+            // Don't treat noTextFound as a hard error - user can still generate roast from manual input
+            if case .noTextFound = error {
+                extractedText = nil
+                // Don't set self.error - this is not a fatal error
+            } else {
+                self.error = error
+                extractedText = nil
+            }
         } catch {
             self.error = error
             extractedText = nil
