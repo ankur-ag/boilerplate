@@ -19,7 +19,7 @@ struct RoastSession: Identifiable, Codable, Equatable {
     let timestamp: Date
     let imageURL: String?
     let ocrText: String?
-    let regenerationCount: Int
+    let source: RoastInputSource
     
     init(
         id: String = UUID().uuidString,
@@ -29,7 +29,7 @@ struct RoastSession: Identifiable, Codable, Equatable {
         timestamp: Date = Date(),
         imageURL: String? = nil,
         ocrText: String? = nil,
-        regenerationCount: Int = 0
+        source: RoastInputSource? = nil
     ) {
         self.id = id
         self.userId = userId
@@ -38,7 +38,13 @@ struct RoastSession: Identifiable, Codable, Equatable {
         self.timestamp = timestamp
         self.imageURL = imageURL
         self.ocrText = ocrText
-        self.regenerationCount = regenerationCount
+        
+        // Auto-detect source if not provided
+        if let source = source {
+            self.source = source
+        } else {
+            self.source = (imageURL != nil || ocrText != nil) ? .image : .text
+        }
     }
     
     var preview: String {
