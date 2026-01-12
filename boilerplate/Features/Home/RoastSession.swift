@@ -58,7 +58,7 @@ struct RoastSession: Identifiable, Codable, Equatable {
 
 // MARK: - Roast Input Source
 
-enum RoastInputSource: String, Codable {
+public enum RoastInputSource: String, Codable {
     case text
     case image
 }
