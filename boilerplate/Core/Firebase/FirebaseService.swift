@@ -78,9 +78,9 @@ class FirebaseService {
                     userId: userId,
                     inputText: inputText,
                     roastText: roastText,
+                    timestamp: timestamp,
                     imageURL: data["imageURL"] as? String,
                     ocrText: data["ocrText"] as? String,
-                    timestamp: timestamp,
                     source: source
                 )
             }
