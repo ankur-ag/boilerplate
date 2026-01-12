@@ -136,7 +136,7 @@ class SubscriptionManager: ObservableObject {
         }
     }
     
-    private func handleTransaction(_ result: VerificationResult<Transaction>) async {
+    private func handleTransaction(_ result: VerificationResult<StoreKit.Transaction>) async {
         // TODO: Verify and process transaction
         // TODO: Update entitlements
         // TODO: Sync with backend
