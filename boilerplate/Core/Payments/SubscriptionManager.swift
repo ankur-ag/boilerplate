@@ -130,13 +130,13 @@ class SubscriptionManager: ObservableObject {
     private func listenForTransactions() -> Task<Void, Error> {
         return Task.detached {
             // TODO: Listen for transaction updates
-            // for await result in Transaction.updates {
+            // for await result in StoreKit.Transaction.updates {
             //     await self.handleTransaction(result)
             // }
         }
     }
     
-    private func handleTransaction(_ result: VerificationResult<Transaction>) async {
+    private func handleTransaction(_ result: VerificationResult<StoreKit.Transaction>) async {
         // TODO: Verify and process transaction
         // TODO: Update entitlements
         // TODO: Sync with backend
