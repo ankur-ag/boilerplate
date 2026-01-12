@@ -21,10 +21,14 @@ class OpenAIService: LLMServiceProtocol {
     }
     
     func sendRequest(_ request: LLMRequest) async throws -> LLMResponse {
+        // Use GPT-4 Vision if message contains images
+        let hasImages = request.messages.contains { $0.hasImages }
+        
         let endpoint = OpenAIChatEndpoint(
             baseURL: baseURL,
             apiKey: apiKey,
-            request: request
+            request: request,
+            useVision: hasImages
         )
         
         let openAIResponse: OpenAIChatResponse = try await networkManager.request(endpoint)
@@ -64,6 +68,7 @@ private struct OpenAIChatEndpoint: Endpoint {
     let baseURL: String
     let apiKey: String
     let request: LLMRequest
+    let useVision: Bool
     
     var path: String {
         return "/chat/completions"
@@ -85,22 +90,73 @@ private struct OpenAIChatEndpoint: Endpoint {
     }
     
     var body: Data? {
-        let messages = request.messages.map { message in
-            OpenAIMessage(
-                role: message.role.rawValue,
-                content: message.content
+        if useVision {
+            // Use vision-compatible message format
+            let messages = request.messages.map { message -> OpenAIVisionMessage in
+                if message.hasImages {
+                    // Create content array with text and images
+                    var contentParts: [OpenAIContentPart] = []
+                    
+                    // Add text content
+                    if !message.content.isEmpty {
+                        contentParts.append(OpenAIContentPart(
+                            type: "text",
+                            text: message.content
+                        ))
+                    }
+                    
+                    // Add image attachments
+                    for attachment in message.attachments where attachment.type == .image {
+                        if let base64Data = attachment.base64Data {
+                            contentParts.append(OpenAIContentPart(
+                                type: "image_url",
+                                imageUrl: OpenAIImageURL(
+                                    url: "data:\(attachment.mimeType);base64,\(base64Data)"
+                                )
+                            ))
+                        }
+                    }
+                    
+                    return OpenAIVisionMessage(
+                        role: message.role.rawValue,
+                        content: contentParts
+                    )
+                } else {
+                    // Text-only message
+                    return OpenAIVisionMessage(
+                        role: message.role.rawValue,
+                        content: [OpenAIContentPart(type: "text", text: message.content)]
+                    )
+                }
+            }
+            
+            let requestBody = OpenAIVisionRequest(
+                model: "gpt-4-vision-preview", // or "gpt-4o"
+                messages: messages,
+                temperature: request.temperature,
+                maxTokens: request.maxTokens
             )
+            
+            return try? JSONEncoder().encode(requestBody)
+        } else {
+            // Standard text-only format
+            let messages = request.messages.map { message in
+                OpenAIMessage(
+                    role: message.role.rawValue,
+                    content: message.content
+                )
+            }
+            
+            let requestBody = OpenAIChatRequest(
+                model: "gpt-4", // or "gpt-3.5-turbo"
+                messages: messages,
+                temperature: request.temperature,
+                maxTokens: request.maxTokens,
+                stream: request.stream
+            )
+            
+            return try? JSONEncoder().encode(requestBody)
         }
-        
-        let requestBody = OpenAIChatRequest(
-            model: "gpt-4", // or "gpt-3.5-turbo"
-            messages: messages,
-            temperature: request.temperature,
-            maxTokens: request.maxTokens,
-            stream: request.stream
-        )
-        
-        return try? JSONEncoder().encode(requestBody)
     }
 }
 
@@ -158,4 +214,47 @@ private struct OpenAIUsage: Codable {
         case completionTokens = "completion_tokens"
         case totalTokens = "total_tokens"
     }
+}
+
+// MARK: - Vision API Models
+
+private struct OpenAIVisionRequest: Codable {
+    let model: String
+    let messages: [OpenAIVisionMessage]
+    let temperature: Double
+    let maxTokens: Int
+    
+    enum CodingKeys: String, CodingKey {
+        case model
+        case messages
+        case temperature
+        case maxTokens = "max_tokens"
+    }
+}
+
+private struct OpenAIVisionMessage: Codable {
+    let role: String
+    let content: [OpenAIContentPart]
+}
+
+private struct OpenAIContentPart: Codable {
+    let type: String
+    let text: String?
+    let imageUrl: OpenAIImageURL?
+    
+    enum CodingKeys: String, CodingKey {
+        case type
+        case text
+        case imageUrl = "image_url"
+    }
+    
+    init(type: String, text: String? = nil, imageUrl: OpenAIImageURL? = nil) {
+        self.type = type
+        self.text = text
+        self.imageUrl = imageUrl
+    }
+}
+
+private struct OpenAIImageURL: Codable {
+    let url: String
 }

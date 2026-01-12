@@ -40,7 +40,11 @@ class LLMManager: ObservableObject {
     // MARK: - Request Methods
     
     /// Send a prompt and get a complete response
-    func sendPrompt(_ prompt: String, context: [LLMMessage] = []) async throws -> LLMResponse {
+    func sendPrompt(
+        _ prompt: String,
+        context: [LLMMessage] = [],
+        attachments: [MediaAttachment] = []
+    ) async throws -> LLMResponse {
         guard let service = llmService else {
             throw LLMError.serviceNotConfigured
         }
@@ -53,8 +57,14 @@ class LLMManager: ObservableObject {
         }
         
         do {
+            let userMessage = LLMMessage(
+                role: .user,
+                content: prompt,
+                attachments: attachments
+            )
+            
             let request = LLMRequest(
-                messages: context + [LLMMessage(role: .user, content: prompt)],
+                messages: context + [userMessage],
                 temperature: 0.7,
                 maxTokens: 2000
             )
@@ -157,17 +167,28 @@ struct LLMMessage: Codable, Identifiable {
     let role: MessageRole
     let content: String
     let timestamp: Date
+    let attachments: [MediaAttachment]
     
     init(
         id: String = UUID().uuidString,
         role: MessageRole,
         content: String,
-        timestamp: Date = Date()
+        timestamp: Date = Date(),
+        attachments: [MediaAttachment] = []
     ) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
+        self.attachments = attachments
+    }
+    
+    var hasAttachments: Bool {
+        !attachments.isEmpty
+    }
+    
+    var hasImages: Bool {
+        attachments.contains { $0.type == .image }
     }
 }
 

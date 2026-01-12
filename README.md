@@ -91,6 +91,8 @@ boilerplate/
 - Support for both streaming and non-streaming
 - Token usage tracking
 - Conversation history
+- **📸 NEW: Multimedia support (photos, videos, documents)**
+- **🤖 NEW: Vision AI integration (GPT-4 Vision ready)**
 
 ### Subscriptions
 - StoreKit 2 implementation
@@ -108,6 +110,17 @@ boilerplate/
 - Event tracking
 - User properties
 - Screen view tracking
+
+### 📸 Media Upload (NEW!)
+- Photo library picker (multi-select)
+- Camera capture
+- Video upload
+- Document picker (PDF, TXT, DOC)
+- Automatic image compression & resize
+- Thumbnail generation
+- Base64 encoding for APIs
+- Chat integration with media preview
+- Permission handling
 
 ## Usage
 

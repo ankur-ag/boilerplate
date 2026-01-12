@@ -14,26 +14,40 @@ class PromptViewModel: ObservableObject {
     @Published var inputText: String = ""
     @Published var isStreaming: Bool = false
     @Published var currentConversation: Conversation?
+    @Published var selectedMedia: [MediaAttachment] = []
+    @Published var showMediaPicker: Bool = false
     
     var canSend: Bool {
-        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isStreaming
+        let hasText = !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let hasMedia = !selectedMedia.isEmpty
+        return (hasText || hasMedia) && !isStreaming
     }
     
     func sendMessage(using llmManager: LLMManager) async {
         guard canSend else { return }
         
-        let userMessage = LLMMessage(role: .user, content: inputText)
+        let userMessage = LLMMessage(
+            role: .user,
+            content: inputText,
+            attachments: selectedMedia
+        )
         messages.append(userMessage)
         
         let prompt = inputText
         inputText = ""
+        let attachments = selectedMedia
+        selectedMedia = []
         isStreaming = true
         
         do {
             // TODO: Choose between streaming and non-streaming based on feature flag
             
             // Non-streaming example
-            let response = try await llmManager.sendPrompt(prompt, context: messages)
+            let response = try await llmManager.sendPrompt(
+                prompt,
+                context: messages,
+                attachments: attachments
+            )
             let assistantMessage = LLMMessage(
                 role: .assistant,
                 content: response.content
@@ -48,6 +62,16 @@ class PromptViewModel: ObservableObject {
         }
         
         isStreaming = false
+    }
+    
+    // MARK: - Media Management
+    
+    func addMediaAttachments(_ attachments: [MediaAttachment]) {
+        selectedMedia.append(contentsOf: attachments)
+    }
+    
+    func removeMediaAttachment(_ attachment: MediaAttachment) {
+        selectedMedia.removeAll { $0.id == attachment.id }
     }
     
     func sendMessageWithStreaming(using llmManager: LLMManager) async {

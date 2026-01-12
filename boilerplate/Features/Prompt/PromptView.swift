@@ -41,6 +41,12 @@ struct PromptView: View {
                 
                 Divider()
                 
+                // Media Attachments Preview
+                if !viewModel.selectedMedia.isEmpty {
+                    mediaPreviewBar
+                    Divider()
+                }
+                
                 // Input Area
                 inputArea
             }
@@ -53,11 +59,26 @@ struct PromptView: View {
                     }
                 }
             }
+            .sheet(isPresented: $viewModel.showMediaPicker) {
+                MediaPickerView { attachments in
+                    viewModel.addMediaAttachments(attachments)
+                }
+            }
         }
     }
     
     private var inputArea: some View {
         HStack(alignment: .bottom, spacing: 12) {
+            // Media button
+            Button(action: {
+                viewModel.showMediaPicker = true
+            }) {
+                Image(systemName: viewModel.selectedMedia.isEmpty ? "photo" : "photo.fill")
+                    .font(.title3)
+                    .foregroundColor(.accentColor)
+            }
+            .disabled(viewModel.isStreaming)
+            
             TextField("Type a message...", text: $viewModel.inputText, axis: .vertical)
                 .textFieldStyle(.roundedBorder)
                 .lineLimit(1...5)
@@ -77,6 +98,31 @@ struct PromptView: View {
         .padding()
         .background(Color(.systemBackground))
     }
+    
+    private var mediaPreviewBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(viewModel.selectedMedia) { attachment in
+                    MediaThumbnailView(attachment: attachment)
+                        .frame(height: 60)
+                        .overlay(alignment: .topTrailing) {
+                            Button {
+                                viewModel.removeMediaAttachment(attachment)
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(.white)
+                                    .background(Color.black.opacity(0.6))
+                                    .clipShape(Circle())
+                            }
+                            .offset(x: 4, y: -4)
+                        }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+        }
+        .background(Color(.secondarySystemBackground))
+    }
 }
 
 // MARK: - Message Bubble
@@ -90,12 +136,20 @@ private struct MessageBubble: View {
                 Spacer()
             }
             
-            VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
-                Text(message.content)
-                    .padding(12)
-                    .background(backgroundColor)
-                    .foregroundColor(textColor)
-                    .cornerRadius(16)
+            VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 8) {
+                // Media Attachments
+                if !message.attachments.isEmpty {
+                    mediaAttachmentsView
+                }
+                
+                // Text Content
+                if !message.content.isEmpty {
+                    Text(message.content)
+                        .padding(12)
+                        .background(backgroundColor)
+                        .foregroundColor(textColor)
+                        .cornerRadius(16)
+                }
                 
                 Text(message.timestamp.formatted(.dateTime.hour().minute()))
                     .font(.caption2)
@@ -104,6 +158,31 @@ private struct MessageBubble: View {
             
             if message.role == .assistant {
                 Spacer()
+            }
+        }
+    }
+    
+    private var mediaAttachmentsView: some View {
+        VStack(alignment: message.role == .user ? .trailing : .leading, spacing: 4) {
+            ForEach(message.attachments) { attachment in
+                if let thumbnail = attachment.thumbnail {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 200, height: 200)
+                        .cornerRadius(12)
+                        .clipped()
+                } else {
+                    // Non-image file
+                    HStack {
+                        Image(systemName: attachment.type.systemIcon)
+                        Text(attachment.fileName)
+                            .font(.caption)
+                    }
+                    .padding(8)
+                    .background(Color.gray.opacity(0.2))
+                    .cornerRadius(8)
+                }
             }
         }
     }
