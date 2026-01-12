@@ -201,11 +201,13 @@ struct RoastDetailView: View {
                         
                         Spacer()
                         
-                        if session.regenerationCount > 0 {
-                            Text("Regenerated \(session.regenerationCount)x")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
+                        // Source indicator
+                        Label(
+                            session.source == .image ? "📷 Image" : "✏️ Text",
+                            systemImage: ""
+                        )
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                     }
                     
                     Text(session.roastText)

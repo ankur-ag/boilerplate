@@ -1,63 +1,40 @@
 //
-//  HomeView.swift
+//  ImageRoastView.swift
 //  boilerplate
 //
-//  RoastGPT Clone - Main roast generation screen
+//  RoastGPT Clone - Image input roasting with OCR
 //  Created by Ankur on 1/12/26.
 //
 
 import SwiftUI
 import PhotosUI
 
-struct HomeView: View {
+struct ImageRoastView: View {
     @StateObject private var viewModel = HomeViewModel()
     @EnvironmentObject private var llmManager: LLMManager
     @EnvironmentObject private var authManager: AuthManager
-    @EnvironmentObject private var subscriptionManager: SubscriptionManager
-    
-    @State private var selectedInputMode: InputMode = .text
-    
-    enum InputMode {
-        case text
-        case image
-    }
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Segmented Control for Input Mode
-                Picker("Input Mode", selection: $selectedInputMode) {
-                    Label("Text", systemImage: "text.quote").tag(InputMode.text)
-                    Label("Image", systemImage: "photo").tag(InputMode.image)
-                }
-                .pickerStyle(.segmented)
-                .padding()
-                
-                // Content based on selected mode
-                ScrollView {
-                    VStack(spacing: 24) {
-                        // Header
-                        headerSection
-                        
-                        // Input Section (changes based on mode)
-                        if selectedInputMode == .text {
-                            textInputSection
-                        } else {
-                            imageInputSection
-                        }
-                        
-                        // Generate Button
-                        generateButton
-                        
-                        // Output Section
-                        if viewModel.hasOutput {
-                            outputSection
-                        }
+            ScrollView {
+                VStack(spacing: 24) {
+                    // Header
+                    headerSection
+                    
+                    // Image Upload Section
+                    imageUploadSection
+                    
+                    // Generate Button
+                    generateButton
+                    
+                    // Output Section
+                    if viewModel.hasOutput {
+                        outputSection
                     }
-                    .padding()
                 }
+                .padding()
             }
-            .navigationTitle("RoastGPT")
+            .navigationTitle("Image Roast")
             .navigationBarTitleDisplayMode(.large)
             .photosPicker(
                 isPresented: $viewModel.showImagePicker,
@@ -93,7 +70,7 @@ struct HomeView: View {
                 .font(.title)
                 .fontWeight(.bold)
             
-            Text(selectedInputMode == .text ? "Enter text to get roasted" : "Upload a screenshot to get roasted")
+            Text("Upload a screenshot and we'll extract the text and roast it")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -102,25 +79,9 @@ struct HomeView: View {
         .padding(.vertical)
     }
     
-    // MARK: - Text Input Section
+    // MARK: - Image Upload Section
     
-    private var textInputSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            TextField("Type your text here...", text: $viewModel.inputText, axis: .vertical)
-                .textFieldStyle(.roundedBorder)
-                .lineLimit(5...10)
-                .disabled(viewModel.isProcessing)
-            
-            Text("\(viewModel.inputText.count) characters")
-                .font(.caption)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-    }
-    
-    // MARK: - Image Input Section
-    
-    private var imageInputSection: some View {
+    private var imageUploadSection: some View {
         VStack(spacing: 16) {
             // Upload Button or Preview
             if let image = viewModel.uploadedImage {
@@ -141,7 +102,7 @@ struct HomeView: View {
                 .padding()
             }
             
-            // OCR Result or No Text Message
+            // OCR Result
             if viewModel.uploadedImage != nil && !viewModel.isExtractingText {
                 if let ocrText = viewModel.extractedText, !ocrText.isEmpty {
                     VStack(alignment: .leading, spacing: 8) {
@@ -161,11 +122,10 @@ struct HomeView: View {
                         .cornerRadius(8)
                     }
                 } else {
-                    // No text found - show helpful message
                     HStack(spacing: 8) {
                         Image(systemName: "info.circle")
                             .foregroundColor(.orange)
-                        Text("No text found in image. You can still enter text manually above.")
+                        Text("No text found in image. Try another image with visible text.")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -183,7 +143,7 @@ struct HomeView: View {
         }) {
             VStack(spacing: 12) {
                 Image(systemName: "photo.on.rectangle.angled")
-                    .font(.system(size: 50))
+                    .font(.system(size: 60))
                     .foregroundColor(.orange)
                 
                 Text("Upload Screenshot")
@@ -194,7 +154,7 @@ struct HomeView: View {
                     .foregroundColor(.secondary)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 200)
+            .frame(height: 250)
             .background(Color.gray.opacity(0.1))
             .cornerRadius(12)
         }
@@ -206,7 +166,7 @@ struct HomeView: View {
             Image(uiImage: image)
                 .resizable()
                 .scaledToFit()
-                .frame(maxHeight: 200)
+                .frame(maxHeight: 300)
                 .cornerRadius(12)
             
             Button(action: {
@@ -274,8 +234,7 @@ struct HomeView: View {
 }
 
 #Preview {
-    HomeView()
+    ImageRoastView()
         .environmentObject(LLMManager())
         .environmentObject(AuthManager())
-        .environmentObject(SubscriptionManager())
 }
