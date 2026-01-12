@@ -2,6 +2,7 @@
 //  HistoryViewModel.swift
 //  boilerplate
 //
+//  RoastGPT Clone - History screen business logic
 //  Created by Ankur on 1/12/26.
 //
 
@@ -10,45 +11,86 @@ import SwiftUI
 
 @MainActor
 class HistoryViewModel: ObservableObject {
-    @Published var conversations: [Conversation] = []
+    @Published var sessions: [RoastSession] = []
     @Published var isLoading: Bool = false
+    @Published var error: Error?
     
-    var groupedConversations: [String: [Conversation]] {
-        Dictionary(grouping: conversations) { conversation in
-            conversation.timestamp.formatted(.dateTime.year().month().day())
+    private let firebaseService = FirebaseService()
+    private let storageManager = StorageManager()
+    
+    var groupedSessions: [String: [RoastSession]] {
+        Dictionary(grouping: sessions) { session in
+            session.timestamp.formatted(.dateTime.year().month().day())
         }
     }
     
-    init() {
-        loadConversations()
-    }
+    // MARK: - Load Sessions
     
-    func refresh() async {
+    func loadSessions(userId: String) async {
         isLoading = true
         
-        // TODO: Sync with backend
-        // TODO: Reload from local storage
-        
-        try? await Task.sleep(nanoseconds: 1_000_000_000) // 1s
-        
-        loadConversations()
+        do {
+            // Try to load from Firebase first
+            sessions = try await firebaseService.loadRoastSessions(userId: userId)
+            
+            // If empty, load from local storage as fallback
+            if sessions.isEmpty {
+                sessions = loadLocalSessions()
+            }
+            
+        } catch {
+            // Fallback to local storage on error
+            sessions = loadLocalSessions()
+            ErrorHandler.log(error, context: "Loading roast sessions")
+        }
         
         isLoading = false
     }
     
-    func deleteConversation(_ conversation: Conversation) {
-        // TODO: Delete from storage
-        conversations.removeAll { $0.id == conversation.id }
+    // MARK: - Delete Sessions
+    
+    func deleteSession(_ session: RoastSession) {
+        sessions.removeAll { $0.id == session.id }
+        
+        Task {
+            do {
+                try await firebaseService.deleteRoastSession(sessionId: session.id, userId: session.userId)
+            } catch {
+                ErrorHandler.log(error, context: "Deleting roast session")
+            }
+            
+            saveLocalSessions()
+        }
     }
     
-    func deleteAllConversations() {
-        // TODO: Delete all from storage
-        conversations.removeAll()
+    func deleteAllSessions() {
+        sessions.removeAll()
+        
+        Task {
+            // TODO: Delete all from Firebase
+            saveLocalSessions()
+        }
     }
     
-    private func loadConversations() {
-        // TODO: Load from persistent storage
-        // Placeholder
-        conversations = []
+    // MARK: - Local Storage
+    
+    private func loadLocalSessions() -> [RoastSession] {
+        do {
+            if let loaded = try storageManager.load([RoastSession].self, forKey: "roast_sessions") {
+                return loaded.sorted { $0.timestamp > $1.timestamp }
+            }
+        } catch {
+            ErrorHandler.log(error, context: "Loading local roast sessions")
+        }
+        
+        return []
+    }
+    
+    private func saveLocalSessions() {
+        do {
+            try storageManager.save(sessions, forKey: "roast_sessions")
+        } catch {
+            ErrorHandler.log(error, context: "Saving local roast sessions")
+        }
     }
 }
