@@ -33,12 +33,13 @@ class OpenAIService: LLMServiceProtocol {
         
         let openAIResponse: OpenAIChatResponse = try await networkManager.request(endpoint)
         
-        guard let firstChoice = openAIResponse.choices.first else {
+        guard let firstChoice = openAIResponse.choices.first,
+              let content = firstChoice.message.content, !content.isEmpty else {
             throw LLMError.invalidResponse
         }
         
         return LLMResponse(
-            content: firstChoice.message.content,
+            content: content,
             role: .assistant,
             usage: TokenUsage(
                 promptTokens: openAIResponse.usage.promptTokens,
@@ -148,11 +149,11 @@ private struct OpenAIChatEndpoint: Endpoint {
             }
             
             let requestBody = OpenAIChatRequest(
-                model: "gpt-4", // or "gpt-3.5-turbo"
+                model: "gpt-3.5-turbo", // Use gpt-3.5-turbo for faster responses
                 messages: messages,
                 temperature: request.temperature,
                 maxTokens: request.maxTokens,
-                stream: request.stream
+                stream: false // Disable streaming to avoid SSE parsing
             )
             
             return try? JSONEncoder().encode(requestBody)
@@ -180,7 +181,12 @@ private struct OpenAIChatRequest: Codable {
 
 private struct OpenAIMessage: Codable {
     let role: String
-    let content: String
+    let content: String?
+    
+    init(role: String, content: String) {
+        self.role = role
+        self.content = content
+    }
 }
 
 private struct OpenAIChatResponse: Codable {
