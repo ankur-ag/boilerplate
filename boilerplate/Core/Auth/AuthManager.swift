@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftUI
+import FirebaseAuth
 
 /// Manages authentication state and operations
 /// Supports anonymous auth by default, with extensibility for Apple Sign In, etc.
@@ -22,23 +23,43 @@ class AuthManager: ObservableObject {
     // MARK: - Initialization
     
     init() {
-        // Empty init - call initialize() to start async setup
+        // Set up Firebase Auth state listener
+        Auth.auth().addStateDidChangeListener { [weak self] _, firebaseUser in
+            Task { @MainActor in
+                if let firebaseUser = firebaseUser {
+                    self?.handleAuthStateChanged(firebaseUser: firebaseUser)
+                } else {
+                    self?.currentUser = nil
+                    self?.isAuthenticated = false
+                }
+            }
+        }
     }
     
     func initialize() async {
         isInitializing = true
         
-        // TODO: Check for existing session
-        // TODO: Restore user from UserDefaults or Keychain
-        // TODO: Validate session with backend
-        
-        // Simulate initialization
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
-        
-        // For now, auto-authenticate anonymously
-        await signInAnonymously()
+        // Check if user is already signed in
+        if let firebaseUser = Auth.auth().currentUser {
+            handleAuthStateChanged(firebaseUser: firebaseUser)
+            print("✅ User already authenticated: \(firebaseUser.uid)")
+        } else {
+            // Auto sign in anonymously
+            await signInAnonymously()
+        }
         
         isInitializing = false
+    }
+    
+    private func handleAuthStateChanged(firebaseUser: FirebaseAuth.User) {
+        currentUser = User(
+            id: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName ?? "Anonymous User",
+            isAnonymous: firebaseUser.isAnonymous
+        )
+        isAuthenticated = true
+        error = nil
     }
     
     // MARK: - Authentication Methods
@@ -46,23 +67,13 @@ class AuthManager: ObservableObject {
     /// Sign in anonymously (default auth method)
     func signInAnonymously() async {
         do {
-            // TODO: Implement Firebase anonymous auth
-            // TODO: Create backend user record
-            // TODO: Store session token
+            let result = try await Auth.auth().signInAnonymously()
+            print("✅ Anonymous sign-in successful: \(result.user.uid)")
             
-            // Placeholder implementation
-            let anonymousUser = User(
-                id: UUID().uuidString,
-                email: nil,
-                displayName: "Anonymous User",
-                isAnonymous: true
-            )
-            
-            currentUser = anonymousUser
-            isAuthenticated = true
-            error = nil
+            // Auth state listener will update currentUser
             
         } catch {
+            print("❌ Anonymous sign-in failed: \(error.localizedDescription)")
             self.error = .signInFailed(error.localizedDescription)
         }
     }

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseCore
 
 @main
 struct BoilerplateApp: App {
@@ -35,7 +36,10 @@ struct BoilerplateApp: App {
     }()
     
     init() {
-        // TODO: Initialize Firebase here
+        // Initialize Firebase
+        FirebaseApp.configure()
+        print("✅ Firebase configured")
+        
         // TODO: Configure Analytics
         // TODO: Set up crash reporting
     }

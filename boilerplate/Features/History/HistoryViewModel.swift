@@ -54,7 +54,7 @@ class HistoryViewModel: ObservableObject {
         
         Task {
             do {
-                try await firebaseService.deleteRoastSession(sessionId: session.id, userId: session.userId)
+                try await firebaseService.deleteRoastSession(session.id)
             } catch {
                 ErrorHandler.log(error, context: "Deleting roast session")
             }

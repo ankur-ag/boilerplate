@@ -7,86 +7,159 @@
 //
 
 import Foundation
+import FirebaseFirestore
+import FirebaseStorage
 
 /// Firebase service layer for RoastGPT
-/// TODO: Implement actual Firebase calls when Firebase SDK is added
+/// Handles Firestore database operations and Storage
 class FirebaseService {
+    static let shared = FirebaseService()
+    
+    private let db = Firestore.firestore()
+    private let storage = Storage.storage()
+    
+    private init() {
+        // Configure Firestore settings
+        let settings = FirestoreSettings()
+        settings.isPersistenceEnabled = true
+        db.settings = settings
+    }
     
     // MARK: - Roast Sessions
     
     /// Save a roast session to Firestore
     /// Path: sessions/{sessionId}
     func saveRoastSession(_ session: RoastSession) async throws {
-        // TODO: Implement Firebase Firestore save
-        // Example:
-        // let db = Firestore.firestore()
-        // try await db.collection("sessions").document(session.id).setData(session.toDictionary())
+        let data: [String: Any] = [
+            "id": session.id,
+            "userId": session.userId,
+            "inputText": session.inputText,
+            "roastText": session.roastText,
+            "imageURL": session.imageURL as Any,
+            "ocrText": session.ocrText as Any,
+            "timestamp": Timestamp(date: session.timestamp),
+            "source": session.source.rawValue
+        ]
         
-        print("📝 [Firebase] Saving roast session: \(session.id)")
-        
-        // For now, just simulate success
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+        do {
+            try await db.collection("sessions").document(session.id).setData(data)
+            print("✅ [Firebase] Session saved: \(session.id)")
+        } catch {
+            print("❌ [Firebase] Save failed: \(error.localizedDescription)")
+            throw FirebaseServiceError.saveFailed(error.localizedDescription)
+        }
     }
     
     /// Load all roast sessions for a user
-    /// Path: sessions (where userId == userId)
+    /// Path: sessions/ where userId == userId
     func loadRoastSessions(userId: String) async throws -> [RoastSession] {
-        // TODO: Implement Firebase Firestore query
-        // Example:
-        // let db = Firestore.firestore()
-        // let query = db.collection("sessions")
-        //     .whereField("userId", isEqualTo: userId)
-        //     .order(by: "timestamp", descending: true)
-        // let snapshot = try await query.getDocuments()
-        // return snapshot.documents.compactMap { RoastSession(from: $0.data()) }
-        
-        print("📚 [Firebase] Loading roast sessions for user: \(userId)")
-        
-        // For now, return empty array
-        return []
+        do {
+            let snapshot = try await db.collection("sessions")
+                .whereField("userId", isEqualTo: userId)
+                .order(by: "timestamp", descending: true)
+                .getDocuments()
+            
+            let sessions = snapshot.documents.compactMap { doc -> RoastSession? in
+                let data = doc.data()
+                
+                guard let id = data["id"] as? String,
+                      let userId = data["userId"] as? String,
+                      let inputText = data["inputText"] as? String,
+                      let roastText = data["roastText"] as? String,
+                      let timestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
+                      let sourceRaw = data["source"] as? String,
+                      let source = RoastInputSource(rawValue: sourceRaw) else {
+                    print("⚠️ [Firebase] Failed to parse session: \(doc.documentID)")
+                    return nil
+                }
+                
+                return RoastSession(
+                    id: id,
+                    userId: userId,
+                    inputText: inputText,
+                    roastText: roastText,
+                    imageURL: data["imageURL"] as? String,
+                    ocrText: data["ocrText"] as? String,
+                    timestamp: timestamp,
+                    source: source
+                )
+            }
+            
+            print("✅ [Firebase] Loaded \(sessions.count) sessions")
+            return sessions
+            
+        } catch {
+            print("❌ [Firebase] Load failed: \(error.localizedDescription)")
+            throw FirebaseServiceError.loadFailed(error.localizedDescription)
+        }
     }
     
     /// Delete a roast session
-    func deleteRoastSession(sessionId: String, userId: String) async throws {
-        // TODO: Implement Firebase Firestore delete
-        // Example:
-        // let db = Firestore.firestore()
-        // try await db.collection("sessions").document(sessionId).delete()
-        
-        print("🗑️ [Firebase] Deleting roast session: \(sessionId)")
-        
-        try? await Task.sleep(nanoseconds: 200_000_000) // 0.2s
+    /// Path: sessions/{sessionId}
+    func deleteRoastSession(_ sessionId: String) async throws {
+        do {
+            try await db.collection("sessions").document(sessionId).delete()
+            print("✅ [Firebase] Session deleted: \(sessionId)")
+        } catch {
+            print("❌ [Firebase] Delete failed: \(error.localizedDescription)")
+            throw FirebaseServiceError.deleteFailed(error.localizedDescription)
+        }
     }
     
     // MARK: - Usage Tracking
     
-    /// Track user usage
+    /// Track user usage for rate limiting / analytics
     /// Path: usage/{userId}
-    func trackUsage(userId: String, sessionId: String) async throws {
-        // TODO: Implement Firebase Firestore usage tracking
-        // Example:
-        // let db = Firestore.firestore()
-        // let usageRef = db.collection("usage").document(userId)
-        // try await usageRef.setData([
-        //     "lastRoastAt": FieldValue.serverTimestamp(),
-        //     "totalRoasts": FieldValue.increment(Int64(1)),
-        //     "sessions": FieldValue.arrayUnion([sessionId])
-        // ], merge: true)
+    func trackUsage(userId: String, tokensUsed: Int) async throws {
+        let userUsageRef = db.collection("usage").document(userId)
         
-        print("📊 [Firebase] Tracking usage for user: \(userId)")
+        do {
+            try await userUsageRef.setData([
+                "userId": userId,
+                "roastsGenerated": FieldValue.increment(Int64(1)),
+                "lastRoastAt": Timestamp(date: Date()),
+                "totalTokensUsed": FieldValue.increment(Int64(tokensUsed))
+            ], merge: true)
+            
+            print("✅ [Firebase] Usage tracked for user: \(userId)")
+        } catch {
+            // Don't throw - usage tracking is non-critical
+            print("⚠️ [Firebase] Usage tracking failed: \(error.localizedDescription)")
+        }
     }
     
-    /// Get user usage statistics
+    /// Get user usage stats
     func getUserUsage(userId: String) async throws -> UserUsage {
-        // TODO: Implement Firebase Firestore query
-        // Example:
-        // let db = Firestore.firestore()
-        // let doc = try await db.collection("usage").document(userId).getDocument()
-        // return UserUsage(from: doc.data())
-        
-        print("📈 [Firebase] Getting usage for user: \(userId)")
-        
-        return UserUsage(userId: userId, totalRoasts: 0, lastRoastAt: nil)
+        do {
+            let doc = try await db.collection("usage").document(userId).getDocument()
+            
+            guard let data = doc.data() else {
+                // Return empty usage if document doesn't exist
+                return UserUsage(
+                    userId: userId,
+                    roastsGenerated: 0,
+                    lastRoastAt: Date(),
+                    totalTokensUsed: 0
+                )
+            }
+            
+            return UserUsage(
+                userId: userId,
+                roastsGenerated: data["roastsGenerated"] as? Int ?? 0,
+                lastRoastAt: (data["lastRoastAt"] as? Timestamp)?.dateValue() ?? Date(),
+                totalTokensUsed: data["totalTokensUsed"] as? Int ?? 0
+            )
+            
+        } catch {
+            print("⚠️ [Firebase] Failed to get usage: \(error.localizedDescription)")
+            // Return empty usage on error
+            return UserUsage(
+                userId: userId,
+                roastsGenerated: 0,
+                lastRoastAt: Date(),
+                totalTokensUsed: 0
+            )
+        }
     }
     
     // MARK: - Image Storage
@@ -94,112 +167,70 @@ class FirebaseService {
     /// Upload image data to Firebase Storage
     /// Path: images/{userId}/{sessionId}.jpg
     func uploadImage(_ imageData: Data, userId: String, sessionId: String) async throws -> String {
-        // TODO: Implement Firebase Storage upload
-        // Example:
-        // let storage = Storage.storage()
-        // let ref = storage.reference().child("images/\(userId)/\(sessionId).jpg")
-        // _ = try await ref.putDataAsync(imageData)
-        // let url = try await ref.downloadURL()
-        // return url.absoluteString
+        let ref = storage.reference().child("images/\(userId)/\(sessionId).jpg")
         
-        print("📤 [Firebase] Uploading image for session: \(sessionId) (\(imageData.count) bytes)")
-        
-        // Return mock URL
-        return "https://firebasestorage.googleapis.com/mock/\(sessionId).jpg"
+        do {
+            let metadata = StorageMetadata()
+            metadata.contentType = "image/jpeg"
+            
+            _ = try await ref.putDataAsync(imageData, metadata: metadata)
+            let url = try await ref.downloadURL()
+            
+            print("✅ [Firebase] Image uploaded: \(sessionId)")
+            return url.absoluteString
+            
+        } catch {
+            print("❌ [Firebase] Image upload failed: \(error.localizedDescription)")
+            throw FirebaseServiceError.uploadFailed(error.localizedDescription)
+        }
     }
     
     /// Delete image from Firebase Storage
     func deleteImage(url: String) async throws {
-        // TODO: Implement Firebase Storage delete
-        // Example:
-        // let storage = Storage.storage()
-        // let ref = storage.reference(forURL: url)
-        // try await ref.delete()
-        
-        print("🗑️ [Firebase] Deleting image: \(url)")
+        do {
+            let ref = storage.reference(forURL: url)
+            try await ref.delete()
+            print("✅ [Firebase] Image deleted: \(url)")
+        } catch {
+            print("⚠️ [Firebase] Image delete failed: \(error.localizedDescription)")
+            // Don't throw - image deletion is non-critical
+        }
+    }
+}
+
+// MARK: - Firebase Service Errors
+
+enum FirebaseServiceError: LocalizedError {
+    case notInitialized
+    case saveFailed(String)
+    case loadFailed(String)
+    case deleteFailed(String)
+    case uploadFailed(String)
+    case imageConversionFailed
+    
+    var errorDescription: String? {
+        switch self {
+        case .notInitialized:
+            return "Firebase is not initialized"
+        case .saveFailed(let message):
+            return "Failed to save data: \(message)"
+        case .loadFailed(let message):
+            return "Failed to load data: \(message)"
+        case .deleteFailed(let message):
+            return "Failed to delete data: \(message)"
+        case .uploadFailed(let message):
+            return "Failed to upload file: \(message)"
+        case .imageConversionFailed:
+            return "Failed to convert image to data"
+        }
     }
 }
 
 // MARK: - User Usage Model
 
-struct UserUsage {
+struct UserUsage: Codable {
     let userId: String
-    let totalRoasts: Int
-    let lastRoastAt: Date?
-    let sessions: [String]
-    
-    init(userId: String, totalRoasts: Int, lastRoastAt: Date?, sessions: [String] = []) {
-        self.userId = userId
-        self.totalRoasts = totalRoasts
-        self.lastRoastAt = lastRoastAt
-        self.sessions = sessions
-    }
-}
-
-// MARK: - Firebase Service Error
-
-enum FirebaseServiceError: LocalizedError {
-    case imageConversionFailed
-    case uploadFailed
-    case downloadFailed
-    case deleteFailed
-    
-    var errorDescription: String? {
-        switch self {
-        case .imageConversionFailed:
-            return "Failed to convert image"
-        case .uploadFailed:
-            return "Failed to upload to Firebase"
-        case .downloadFailed:
-            return "Failed to download from Firebase"
-        case .deleteFailed:
-            return "Failed to delete from Firebase"
-        }
-    }
-}
-
-// MARK: - Extensions for Firebase Conversion
-
-extension RoastSession {
-    /// Convert to dictionary for Firebase
-    func toDictionary() -> [String: Any] {
-        var dict: [String: Any] = [
-            "id": id,
-            "userId": userId,
-            "inputText": inputText,
-            "roastText": roastText,
-            "timestamp": timestamp,
-            "regenerationCount": regenerationCount
-        ]
-        
-        if let imageURL = imageURL {
-            dict["imageURL"] = imageURL
-        }
-        
-        if let ocrText = ocrText {
-            dict["ocrText"] = ocrText
-        }
-        
-        return dict
-    }
-    
-    /// Initialize from Firebase dictionary
-    init?(from dict: [String: Any]) {
-        guard let id = dict["id"] as? String,
-              let userId = dict["userId"] as? String,
-              let inputText = dict["inputText"] as? String,
-              let roastText = dict["roastText"] as? String,
-              let timestamp = dict["timestamp"] as? Date else {
-            return nil
-        }
-        
-        self.id = id
-        self.userId = userId
-        self.inputText = inputText
-        self.roastText = roastText
-        self.timestamp = timestamp
-        self.imageURL = dict["imageURL"] as? String
-        self.ocrText = dict["ocrText"] as? String
-        self.regenerationCount = dict["regenerationCount"] as? Int ?? 0
-    }
+    let roastsGenerated: Int
+    let lastRoastAt: Date
+    let totalTokensUsed: Int
 }
