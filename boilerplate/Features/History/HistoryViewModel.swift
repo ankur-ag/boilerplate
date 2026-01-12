@@ -15,7 +15,7 @@ class HistoryViewModel: ObservableObject {
     @Published var isLoading: Bool = false
     @Published var error: Error?
     
-    private let firebaseService = FirebaseService()
+    private let firebaseService = FirebaseService.shared
     private let storageManager = StorageManager()
     
     var groupedSessions: [String: [RoastSession]] {

@@ -50,11 +50,11 @@ struct RoastSession: Identifiable, Codable, Equatable {
     }
 }
 
-// MARK: - Roast Input Type
+// MARK: - Roast Input Source
 
-enum RoastInputType {
-    case text(String)
-    case image(UIImage, extractedText: String?)
+enum RoastInputSource: String, Codable {
+    case text
+    case image
 }
 
 // MARK: - Roast Generation State
