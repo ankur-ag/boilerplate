@@ -35,6 +35,11 @@ class LLMManager: ObservableObject {
     /// Set the LLM service provider (OpenAI, Anthropic, etc.)
     func configure(with service: LLMServiceProtocol) {
         self.llmService = service
+        print("✅ LLMManager configured with service: \(type(of: service))")
+    }
+    
+    var isConfigured: Bool {
+        llmService != nil
     }
     
     // MARK: - Request Methods
@@ -42,8 +47,7 @@ class LLMManager: ObservableObject {
     /// Send a prompt and get a complete response
     func sendPrompt(
         _ prompt: String,
-        context: [LLMMessage] = [],
-        attachments: [MediaAttachment] = []
+        context: [LLMMessage] = []
     ) async throws -> LLMResponse {
         guard let service = llmService else {
             throw LLMError.serviceNotConfigured
@@ -59,8 +63,7 @@ class LLMManager: ObservableObject {
         do {
             let userMessage = LLMMessage(
                 role: .user,
-                content: prompt,
-                attachments: attachments
+                content: prompt
             )
             
             let request = LLMRequest(
@@ -88,6 +91,7 @@ class LLMManager: ObservableObject {
         onComplete: @escaping (LLMResponse) -> Void
     ) async throws {
         guard let service = llmService else {
+            print("❌ LLMManager.streamPrompt: llmService is nil!")
             throw LLMError.serviceNotConfigured
         }
         
@@ -167,28 +171,17 @@ struct LLMMessage: Codable, Identifiable {
     let role: MessageRole
     let content: String
     let timestamp: Date
-    let attachments: [MediaAttachment]
     
     init(
         id: String = UUID().uuidString,
         role: MessageRole,
         content: String,
-        timestamp: Date = Date(),
-        attachments: [MediaAttachment] = []
+        timestamp: Date = Date()
     ) {
         self.id = id
         self.role = role
         self.content = content
         self.timestamp = timestamp
-        self.attachments = attachments
-    }
-    
-    var hasAttachments: Bool {
-        !attachments.isEmpty
-    }
-    
-    var hasImages: Bool {
-        attachments.contains { $0.type == .image }
     }
 }
 
