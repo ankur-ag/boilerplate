@@ -29,11 +29,25 @@ extension View {
             Button("OK") {
                 error.wrappedValue = nil
             }
-        } message: {
-            if let error = error.wrappedValue {
-                Text(error.localizedDescription)
             }
         }
+    }
+    
+    /// Track screen view using AnalyticsManager
+    func trackScreenView(_ screenName: String) -> some View {
+        self.modifier(ScreenTrackingModifier(screenName: screenName))
+    }
+}
+
+private struct ScreenTrackingModifier: ViewModifier {
+    let screenName: String
+    @Environment(\.analyticsManager) private var analyticsManager
+    
+    func body(content: Content) -> some View {
+        content
+            .onAppear {
+                analyticsManager.logScreenView(screenName)
+            }
     }
 }
 
