@@ -217,7 +217,7 @@ class HomeViewModel: ObservableObject {
             self.mediumRoast = response.content
             
             // Determine source type (OCR if image was present)
-            let source: RoastSource = attachments.isEmpty ? .text : .ocr
+            let source: RoastInputSource = attachments.isEmpty ? .text : .ocr
             
             // Create session with both roast levels
             let session = RoastSession(

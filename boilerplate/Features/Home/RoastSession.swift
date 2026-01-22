@@ -72,6 +72,7 @@ struct RoastSession: Identifiable, Codable, Equatable {
 public enum RoastInputSource: String, Codable {
     case text
     case image
+    case ocr
 }
 
 // MARK: - Roast Generation State
