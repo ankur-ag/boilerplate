@@ -18,18 +18,14 @@ struct BoilerplateApp: App {
     @StateObject private var usageManager = UsageManager()
     @StateObject private var imageGenerationManager: ImageGenerationManager = {
         let manager = ImageGenerationManager()
-        let replicateKey = ProcessInfo.processInfo.environment["REPLICATE_API_TOKEN"] ?? ""
-        let geminiKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"] ?? ""
+
+        let geminiKey = (ProcessInfo.processInfo.environment["GEMINI_API_KEY"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         
         // TEST MODE: Prioritize Gemini Flash
         if !geminiKey.isEmpty {
             let geminiService = GeminiFlashService(apiKey: geminiKey)
             manager.configure(with: geminiService)
             print("✅ Image Generation configured with Gemini Flash (TEST MODE)")
-        } else if !replicateKey.isEmpty {
-            let replicateService = ReplicateImageGenerationService(apiKey: replicateKey)
-            manager.configure(with: replicateService)
-            print("✅ Image Generation configured with Replicate")
         } else {
             print("⚠️ Image Generation Service NOT configured (Missing API Keys)")
         }
@@ -44,8 +40,8 @@ struct BoilerplateApp: App {
         let manager = LLMManager()
         
         // Get API keys from environment variables
-        let openAIKey = ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? ""
-        let geminiKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"] ?? ""
+        let openAIKey = (ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let geminiKey = (ProcessInfo.processInfo.environment["GEMINI_API_KEY"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         
         // Configure Services
         if !openAIKey.isEmpty {
