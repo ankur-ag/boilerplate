@@ -42,16 +42,14 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        // Ask Gemini to generate the meme image directly
-        let imagePrompt = "Generate a sports roast meme image. Scenario: \(prompt). Style: \(style.description). The image should be a classic meme format with bold text."
-        
-        print("💬 [Gemini Flash] Image Prompt: \(imagePrompt)")
+        // Create request body with the Enhanced Prompt
+        print("💬 [Gemini Flash] Image Prompt:\n\(enhancedPrompt)")
         
         let requestBody: [String: Any] = [
             "contents": [
                 [
                     "parts": [
-                        ["text": imagePrompt]
+                        ["text": enhancedPrompt]
                     ]
                 ]
             ],
