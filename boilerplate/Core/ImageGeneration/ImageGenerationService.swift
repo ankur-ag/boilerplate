@@ -78,7 +78,10 @@ class GeminiImageGenerationService: ImageGenerationServiceProtocol {
         // 3. For now, we'll use Gemini to generate a text-based meme description
         
         // Use Gemini Pro to generate a detailed image description
-        let endpoint = "\(baseURL)/models/gemini-2.5-flash-image:generateContent?key=\(apiKey)"
+        let maskedKey = apiKey.count > 8 ? String(apiKey.prefix(4)) + "..." + String(apiKey.suffix(4)) : "***"
+        let endpoint = "\(baseURL)/models/gemini-3-pro-image-preview:generateContent?key=\(apiKey)"
+        
+        print("🌐 [Gemini Image] Request URL: \(baseURL)/models/gemini-3-pro-image-preview:generateContent?key=\(maskedKey)")
         
         guard let url = URL(string: endpoint) else {
             throw ImageGenerationError.invalidRequest
@@ -88,8 +91,13 @@ class GeminiImageGenerationService: ImageGenerationServiceProtocol {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
+        print("📋 [Gemini Image] HTTP Method: POST")
+        print("📋 [Gemini Image] Headers: Content-Type: application/json")
+        
         // Ask Gemini to generate the meme image directly
         let imagePrompt = "Generate a sports roast meme image. Scenario: \(prompt). Style: \(style.description). The image should be a classic meme format with bold text."
+        
+        print("💬 [Gemini Image] Image Prompt: \(imagePrompt)")
         
         // Ask Gemini to generate the meme image directly
         let requestBody: [String: Any] = [
@@ -113,7 +121,7 @@ class GeminiImageGenerationService: ImageGenerationServiceProtocol {
         
         if let requestData = try? JSONSerialization.data(withJSONObject: requestBody, options: .prettyPrinted),
            let requestString = String(data: requestData, encoding: .utf8) {
-            print("📤 Gemini Request Body: \(requestString)")
+            print("📤 [Gemini Image] Full Request Body:\n\(requestString)")
         }
         
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)

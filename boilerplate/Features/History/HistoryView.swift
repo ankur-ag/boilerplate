@@ -20,35 +20,26 @@ struct HistoryView: View {
                 DesignSystem.Colors.backgroundPrimary
                     .ignoresSafeArea()
                 
-                Group {
-                    if viewModel.isLoading {
-                        loadingView
-                    } else if filteredSessions.isEmpty {
-                        emptyState
-                    } else {
-                        sessionsList
-                    }
-                }
-            }
-            .navigationTitle("History")
-            .navigationBarTitleDisplayMode(.large)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(DesignSystem.Colors.backgroundSecondary, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Menu {
-                        Button(role: .destructive, action: {
-                            viewModel.deleteAllSessions()
-                        }) {
-                            Label("Delete All", systemImage: "trash")
+                VStack(spacing: 0) {
+                    // Custom Header
+                    header
+                    
+                    // Custom Search Bar
+                    searchBar
+                    
+                    Group {
+                        if viewModel.isLoading {
+                            loadingView
+                        } else if filteredSessions.isEmpty {
+                            emptyState
+                        } else {
+                            sessionsList
                         }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .foregroundColor(DesignSystem.Colors.textPrimary)
                     }
                 }
             }
-            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search posterizes...")
+            .navigationBarHidden(true)
+            .preferredColorScheme(.dark)
             .refreshable {
                 await viewModel.loadSessions(userId: authManager.currentUser?.id ?? "anonymous")
             }
@@ -56,6 +47,61 @@ struct HistoryView: View {
                 await viewModel.loadSessions(userId: authManager.currentUser?.id ?? "anonymous")
             }
         }
+    }
+    
+    // MARK: - Custom Header
+    
+    private var header: some View {
+        HStack {
+            Text("History")
+                .font(.system(size: 32, weight: .bold))
+                .foregroundColor(DesignSystem.Colors.primaryOrange)
+            
+            Spacer()
+            
+            Menu {
+                Button(role: .destructive, action: {
+                    viewModel.deleteAllSessions()
+                }) {
+                    Label("Delete All", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .font(.system(size: 24))
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.top, 60)
+        .padding(.bottom, DesignSystem.Spacing.md)
+    }
+    
+    // MARK: - Custom Search Bar
+    
+    private var searchBar: some View {
+        HStack {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(DesignSystem.Colors.textTertiary)
+            
+            TextField("Search posterizes...", text: $searchText)
+                .foregroundColor(DesignSystem.Colors.textPrimary)
+                .font(DesignSystem.Typography.body)
+            
+            if !searchText.isEmpty {
+                Button(action: {
+                    searchText = ""
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                }
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, DesignSystem.Spacing.sm)
+        .background(DesignSystem.Colors.backgroundSecondary)
+        .cornerRadius(DesignSystem.CornerRadius.md)
+        .padding(.horizontal, DesignSystem.Spacing.lg)
+        .padding(.bottom, DesignSystem.Spacing.lg)
     }
     
     // MARK: - Filtered Sessions

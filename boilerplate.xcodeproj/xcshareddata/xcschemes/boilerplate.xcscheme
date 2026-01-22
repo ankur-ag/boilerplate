@@ -88,7 +88,7 @@
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "GEMINI_API_KEY"
-            value = "AIzaSyAehhR7C61fc6S1ru6lx4RZEBexU1kaQ6E"
+            value = "AIzaSyABt7FkhNYlMmxhgSt7veTWlWI8wXFybpg"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
