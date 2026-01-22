@@ -50,8 +50,8 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         ]
         
         if let imageData = inputImage {
-            // Resize to avoid "Message too long" errors (max 512px, 0.6 quality)
-            let resizedData = resizeImage(data: imageData, maxDimension: 512) ?? imageData
+            // Aggressively resize to 256px to ensure payload is tiny (< 50KB)
+            let resizedData = resizeImage(data: imageData, maxDimension: 256) ?? imageData
             let base64Image = resizedData.base64EncodedString()
             
             parts.append([
@@ -60,7 +60,7 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
                     "data": base64Image
                 ]
             ])
-            print("📸 [Gemini Flash] Attached reference image (\(resizedData.count) bytes, original: \(imageData.count))")
+            print("📸 [Gemini Flash] Attached resized image: \(resizedData.count) bytes (Original: \(imageData.count) bytes)")
         }
         
         let requestBody: [String: Any] = [
@@ -69,6 +69,7 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
                     "parts": parts
                 ]
             ],
+            // ... (rest of body structure) ...
             "generationConfig": [
                 "response_modalities": ["IMAGE"]
             ],
@@ -81,8 +82,21 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         ]
         
         request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+        print("📦 Request Body Size: \(request.httpBody?.count ?? 0) bytes")
         
-        let (data, response) = try await URLSession.shared.data(for: request)
+        // Use ephemeral session with extended timeout
+        let sessionConfig = URLSessionConfiguration.ephemeral
+        sessionConfig.timeoutIntervalForRequest = 60
+        let session = URLSession(configuration: sessionConfig)
+        
+        let (data, response) = try await session.data(for: request)
+        
+        // Log Raw Response
+        if let responseString = String(data: data, encoding: .utf8) {
+            // Truncate if too long to avoid console spam, but show enough for error
+            let logString = responseString.count > 1000 ? String(responseString.prefix(1000)) + "... (truncated)" : responseString
+            print("📦 Raw Response: \(logString)")
+        }
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ImageGenerationError.networkError
