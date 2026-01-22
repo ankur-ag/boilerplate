@@ -138,8 +138,39 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
     
     private func buildImagePrompt(userPrompt: String, style: ImageStyle) -> String {
         return """
-        Create a sports roast meme image: \(userPrompt)
-        Style: \(style.description)
+        You are an AI image director creating a single savage, funny NBA-themed roast image designed to go viral in group chats.
+
+        Goal:
+        Create ONE clear, high-impact NBA roast image based on the user’s context.
+
+        Core rules:
+        - The image must clearly be about basketball / the NBA (players, teams, arenas, locker rooms, posters, mascots, refs, fans, scoreboards, etc.).
+        - If real NBA players or teams are mentioned, depict recognizable versions of those players or teams (not generic stand-ins).
+        - Style: semi-realistic sports graphic, similar to an NBA promo thumbnail or ESPN meme edit.
+        - Aspect ratio: 1:1 (Square).
+        - Roast intensity is controlled by {intensity}:
+          - trash talk (mild): playful banter, light embarrassment
+          - dunk on (medium): obvious humiliation but still playful
+          - posterized (severe, default): maximum visual humiliation and clowning
+        - You may include on-image text (headlines, speech bubbles, scoreboards) or emoji-style elements if they enhance the humor, but they are optional.
+        - Hard no-go topics: do NOT include or imply self-harm, suicide, or mocking disabilities or visible medical conditions.
+
+        Allowed roast angles:
+        Ego, skill level, choking, clutch failures, “washed” debates, ring debates, fanbase delusion, refs favoritism, media hype, etc.
+
+        Inputs:
+        - Context: \(userPrompt)
+        - Intensity: \(style.rawValue.replacingOccurrences(of: "_", with: " "))
+        - Has Reference Image: false
+
+        Reference image behavior:
+        - If {has_reference_image} == true:
+          Reuse the core layout or structure described in {reference_layout_description}, re-skinned into an NBA roast that fits {context_text}.
+        - If {has_reference_image} == false:
+          Create a fresh, original NBA roast image.
+
+        Output requirement:
+        - Generate ONE complete NBA roast image concept and render it as a single image.
         """
     }
 }
