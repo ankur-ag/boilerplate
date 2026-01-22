@@ -50,14 +50,17 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         ]
         
         if let imageData = inputImage {
-            let base64Image = imageData.base64EncodedString()
+            // Resize to avoid "Message too long" errors (max 1024px, 0.7 quality)
+            let resizedData = resizeImage(data: imageData, maxDimension: 1024) ?? imageData
+            let base64Image = resizedData.base64EncodedString()
+            
             parts.append([
                 "inlineData": [
                     "mimeType": "image/jpeg",
                     "data": base64Image
                 ]
             ])
-            print("📸 [Gemini Flash] Attached reference image (\(imageData.count) bytes)")
+            print("📸 [Gemini Flash] Attached reference image (\(resizedData.count) bytes, original: \(imageData.count))")
         }
         
         let requestBody: [String: Any] = [
@@ -183,5 +186,24 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         Output requirement:
         - Generate ONE complete NBA roast image concept and render it as a single image.
         """
+    }
+    
+    private func resizeImage(data: Data, maxDimension: CGFloat) -> Data? {
+        guard let image = UIImage(data: data) else { return nil }
+        
+        let size = image.size
+        if size.width <= maxDimension && size.height <= maxDimension {
+            return data
+        }
+        
+        let scale = min(maxDimension / size.width, maxDimension / size.height)
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        let resizedImage = renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
+        }
+        
+        return resizedImage.jpegData(compressionQuality: 0.7)
     }
 }
