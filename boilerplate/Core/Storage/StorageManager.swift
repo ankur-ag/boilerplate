@@ -51,6 +51,18 @@ class StorageManager: StorageManaging {
         }
     }
     
+    func clearAll() throws {
+        // Clear UserDefaults
+        clear()
+        
+        // Clear all files in documents directory
+        let documentsURL = try getDocumentsDirectory()
+        let fileURLs = try fileManager.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)
+        for fileURL in fileURLs {
+            try fileManager.removeItem(at: fileURL)
+        }
+    }
+    
     // MARK: - File Storage
     
     func saveToFile<T: Codable>(_ value: T, filename: String) throws {
@@ -83,6 +95,25 @@ class StorageManager: StorageManaging {
     private func getDocumentsDirectory() throws -> URL {
         try fileManager.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
     }
+    
+    // MARK: - User Sports Preferences
+    
+    func saveUserSportsPreferences(_ preferences: UserSportsPreferences) {
+        do {
+            try save(preferences, forKey: StorageKeys.userSportsPreferences)
+        } catch {
+            print("❌ Failed to save user sports preferences: \(error)")
+        }
+    }
+    
+    func loadUserSportsPreferences() -> UserSportsPreferences? {
+        do {
+            return try load(UserSportsPreferences.self, forKey: StorageKeys.userSportsPreferences)
+        } catch {
+            print("❌ Failed to load user sports preferences: \(error)")
+            return nil
+        }
+    }
 }
 
 // MARK: - Storage Keys
@@ -92,4 +123,5 @@ enum StorageKeys {
     static let conversations = "conversations"
     static let appConfig = "app_config"
     static let subscriptionStatus = "subscription_status"
+    static let userSportsPreferences = "user_sports_preferences"
 }
