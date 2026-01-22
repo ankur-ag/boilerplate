@@ -252,7 +252,7 @@ class HomeViewModel: ObservableObject {
 
         Output requirements:
         - Output a SINGLE roast.
-        - 1–2 lines max.
+        - 3-4 lines max.
         - No emojis unless they genuinely add punch.
         - No disclaimers, no explanations, no alternatives.
         - The roast should stand alone as a meme caption.
