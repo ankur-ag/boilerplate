@@ -620,6 +620,7 @@ class ImageRoastViewModel: ObservableObject {
         }
         
         inputText = ""
+        self.clearMedia()
         
         // Build roast prompt with context
         let roastPrompt = buildImageRoastPrompt(input: inputForRoast)
@@ -708,7 +709,6 @@ class ImageRoastViewModel: ObservableObject {
             }
         }
         
-        self.clearMedia()
         isGenerating = false
     }
     

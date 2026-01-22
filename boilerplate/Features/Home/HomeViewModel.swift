@@ -168,6 +168,10 @@ class HomeViewModel: ObservableObject {
             attachments.append(media)
         }
         
+        // Clear inputs immediately
+        inputText = ""
+        clearMedia()
+        
         // Generate POSTERIZED level (highest)
         let posterizedPrompt = buildRoastPrompt(for: inputForRoast, intensity: .posterized)
         
@@ -238,10 +242,6 @@ class HomeViewModel: ObservableObject {
             await self.saveSession(session)
             
             self.isGenerating = false
-            
-            // Clear input after successful generation
-            self.inputText = ""
-            self.clearMedia()
             
             // Increment usage count
             usageManager?.incrementTextRoastCount()
