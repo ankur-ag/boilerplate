@@ -547,34 +547,49 @@ class ImageRoastViewModel: ObservableObject {
         let roastPrompt = buildImageRoastPrompt(input: inputForRoast)
         
         do {
-            // Level 1: POSTERIZED
+            // Parallel Generation using async let
+            print("🚀 Starting parallel image generation...")
+            
+            async let posterizedResult: GeneratedImage? = {
+                do {
+                    print("🎨 Generating POSTERIZED image...")
+                    return try await imageGenManager.generateImage(prompt: roastPrompt, style: .posterized)
+                } catch {
+                    print("⚠️ [ViewModel] Posterized generation failed: \(error.localizedDescription)")
+                    return nil
+                }
+            }()
+            
+            async let dunkedOnResult: GeneratedImage? = {
+                do {
+                    print("🎨 Generating DUNKED ON image...")
+                    return try await imageGenManager.generateImage(prompt: roastPrompt, style: .dunkedOn)
+                } catch {
+                    print("⚠️ [ViewModel] Dunked On generation failed: \(error.localizedDescription)")
+                    return nil
+                }
+            }()
+            
+            // Await both results
+            let (posterized, dunkedOn) = await (posterizedResult, dunkedOnResult)
+            
+            // Process Results
             var posterizedURL: String?
-            do {
-                print("🎨 Generating POSTERIZED image...")
-                let posterized = try await imageGenManager.generateImage(prompt: roastPrompt, style: .posterized)
-                posterizedImage = posterized.imageURL
-                posterizedURL = posterized.imageURL
-            } catch {
-                print("⚠️ [ViewModel] Posterized generation failed: \(error.localizedDescription)")
-                self.error = error // Store the error but try next level if relevant
+            if let img = posterized {
+                posterizedImage = img.imageURL
+                posterizedURL = img.imageURL
             }
             
-            // Artificial delay to avoid Rate Limits (429) on free/trial tiers
-            if posterizedURL != nil {
-                print("⏳ Waiting to avoid rate limits...")
-                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds delay
-            }
-            
-            // Level 2: DUNKED ON
             var dunkedOnURL: String?
-            do {
-                print("🎨 Generating DUNKED ON image...")
-                let dunkedOn = try await imageGenManager.generateImage(prompt: roastPrompt, style: .dunkedOn)
-                dunkedOnImage = dunkedOn.imageURL
-                dunkedOnURL = dunkedOn.imageURL
-            } catch {
-                print("⚠️ [ViewModel] Dunked On generation failed: \(error.localizedDescription)")
-                if posterizedURL == nil { self.error = error } // Only critical if BOTH fail
+            if let img = dunkedOn {
+                dunkedOnImage = img.imageURL
+                dunkedOnURL = img.imageURL
+            }
+            
+            // Set error if both failed (for UI feedback)
+            if posterized == nil && dunkedOn == nil {
+                print("❌ [ViewModel] Both image generation levels failed")
+                if self.error == nil { self.error = ImageGenerationError.generationFailed("Could not generate any images") }
             }
             
             // Proceed if we have AT LEAST ONE image
@@ -594,12 +609,12 @@ class ImageRoastViewModel: ObservableObject {
                     }
                 )
             } else if let dURL = dunkedOnURL {
-                // Determine if we should treat this as success if only second worked
+                // Secondary only success
                 print("✅ Image roast generated (only secondary level)")
                 await createAndUploadSession(
                     userId: userId,
                     input: inputForRoast,
-                    localURL: dURL, // Use dunkedOn as primary if posterized failed
+                    localURL: dURL, // Use dunkedOn as primary
                     secondaryLocalURL: nil,
                     intensity: self.selectedIntensity,
                     onSuccess: {
@@ -609,16 +624,10 @@ class ImageRoastViewModel: ObservableObject {
                         }
                     }
                  )
-                 // Update the UI model to show this as primary since P1 failed
+                 // Update UI to show this as primary
                  posterizedImage = dURL
                  dunkedOnImage = nil
-            } else {
-                print("❌ [ViewModel] Both image generation levels failed")
-                if self.error == nil { self.error = ImageGenerationError.generationFailed("Could not generate any images") }
             }
-        } catch {
-            print("❌ Image generation outer error: \(error.localizedDescription)")
-            self.error = error
         }
         
         isGenerating = false
