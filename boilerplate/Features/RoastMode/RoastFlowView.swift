@@ -11,6 +11,10 @@ import SwiftUI
 struct RoastFlowView: View {
     @State private var selectedMode: RoastMode?
     
+    // Create view models at this level to persist across navigation
+    @StateObject private var homeViewModel = HomeViewModel()
+    @StateObject private var imageRoastViewModel = ImageRoastViewModel()
+    
     var body: some View {
         NavigationStack {
             ZStack {
@@ -19,7 +23,7 @@ struct RoastFlowView: View {
                 
                 // Navigation to Text Roast
                 NavigationLink(
-                    destination: HomeView(),
+                    destination: HomeView(viewModel: homeViewModel),
                     tag: RoastMode.text,
                     selection: $selectedMode
                 ) {
@@ -29,7 +33,7 @@ struct RoastFlowView: View {
                 
                 // Navigation to Image Roast
                 NavigationLink(
-                    destination: ImageRoastView(),
+                    destination: ImageRoastView(viewModel: imageRoastViewModel),
                     tag: RoastMode.image,
                     selection: $selectedMode
                 ) {

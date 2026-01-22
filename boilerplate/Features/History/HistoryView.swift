@@ -221,9 +221,11 @@ struct HistoryView: View {
     @ViewBuilder
     private func roastedView(for session: RoastSession) -> some View {
         if session.source == .image {
-            ImageRoastView(session: session)
+            let viewModel = ImageRoastViewModel()
+            ImageRoastView(viewModel: viewModel, session: session)
         } else {
-            HomeView(session: session)
+            let viewModel = HomeViewModel()
+            HomeView(viewModel: viewModel, session: session)
         }
     }
 }

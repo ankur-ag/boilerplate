@@ -40,63 +40,48 @@ class HomeViewModel: ObservableObject {
     // MARK: - Published Properties
     
     @Published var inputText: String = ""
-    @Published var currentRoast: String = "" // POSTERIZED level
-    @Published var mediumRoast: String = "" // DUNKED ON level
+    @Published var primaryRoastText: String = "" // Matches selectedIntensity
+    @Published var secondaryRoastText: String = "" // Alternative intensity
     @Published var submittedInput: String = ""
     @Published var selectedIntensity: RoastIntensity = .posterized
+    @Published var isGenerating: Bool = false
     @Published var error: Error?
     @Published var userPreferences: UserSportsPreferences?
-    
-    // Media Input
-    @Published var selectedImage: UIImage?
-    @Published var selectedMedia: MediaAttachment?
-    @Published var showPhotoPicker: Bool = false
-    @Published var photoSelection: PhotosPickerItem? {
-        didSet {
-            if photoSelection != nil {
-                Task { await handlePhotoSelection() }
-            }
-        }
-    }
-    
-    @Published private(set) var isGenerating: Bool = false
     @Published private(set) var currentSession: RoastSession?
     
-    // MARK: - Dependencies
+    // Captured intensities for display (fixed after generation)
+    @Published var generatedPrimaryIntensity: RoastIntensity?
+    @Published var generatedSecondaryIntensity: RoastIntensity?
     
     private let firebaseService = FirebaseService.shared
     private let storageManager = StorageManager()
-    private let mediaManager = MediaManager()
-    
-    // MARK: - Initialization
-    
-    init() {
-        loadUserPreferences()
-    }
-    
-    // MARK: - Computed Properties
-    
-    var canGenerate: Bool {
-        (!inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedImage != nil) && !isGenerating
-    }
+    private var hasLoadedPreferences = false
     
     var hasOutput: Bool {
-        !currentRoast.isEmpty
+        !primaryRoastText.isEmpty
     }
     
-    var isProcessing: Bool {
-        isGenerating
-    }
-    
-    // MARK: - User Preferences
-    
-    func loadUserPreferences() {
-        if let prefs = try? storageManager.load(UserSportsPreferences.self, forKey: "sports_preferences") {
-            userPreferences = prefs
+    var secondaryIntensity: RoastIntensity {
+        switch selectedIntensity {
+        case .posterized: return .dunkedOn
+        case .dunkedOn: return .posterized
+        case .trashTalk: return .dunkedOn
         }
     }
     
+    var canGenerate: Bool {
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isGenerating
+    }
+    
+    init() {
+        self.userPreferences = storageManager.loadUserSportsPreferences()
+    }
+    
     func refreshPreferences(userId: String) async {
+        // Only refresh once to avoid overwriting user's current selection
+        guard !hasLoadedPreferences else { return }
+        hasLoadedPreferences = true
+        
         do {
             if let cloudPrefs = try await firebaseService.loadUserPreferences(userId: userId) {
                 await MainActor.run {
@@ -107,37 +92,10 @@ class HomeViewModel: ObservableObject {
                 storageManager.saveUserSportsPreferences(cloudPrefs)
             }
         } catch {
-            print("❌ [Home] Failed to refresh preferences from Firebase: \(error.localizedDescription)")
+            print("❌ [TextRoast] Failed to refresh preferences from Firebase: \(error.localizedDescription)")
         }
     }
     
-    // MARK: - Media Handling
-    
-    func handlePhotoSelection() async {
-        guard let item = photoSelection else { return }
-        
-        do {
-            let attachments = try await mediaManager.processPhotoPickerResults([item])
-            if let attachment = attachments.first {
-                await MainActor.run {
-                    self.selectedMedia = attachment
-                    if let data = attachment.thumbnailData {
-                        self.selectedImage = UIImage(data: data)
-                    }
-                }
-            }
-        } catch {
-            print("❌ Error processing photo selection: \(error)")
-            self.error = error
-        }
-    }
-    
-    func clearMedia() {
-        selectedImage = nil
-        selectedMedia = nil
-        photoSelection = nil
-    }
-
     // MARK: - Roast Generation
     
     func generateRoast(
@@ -149,50 +107,45 @@ class HomeViewModel: ObservableObject {
         guard canGenerate else { return }
         
         print("🎯 generateRoast called")
-        print("🎯 llmManager isConfigured: \(llmManager.isConfigured)")
         
         // Track if this is first roast
-        let isFirstRoast = usageManager?.textRoastCount == 0
+        let isFirstRoast: Bool = usageManager?.textRoastCount == 0
         
         isGenerating = true
-        currentRoast = ""
-        mediumRoast = ""
+        primaryRoastText = ""
+        secondaryRoastText = ""
         error = nil
         
         let inputForRoast = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         submittedInput = inputForRoast
         
-        // Prepare attachments
-        var attachments: [MediaAttachment] = []
-        if let media = selectedMedia {
-            attachments.append(media)
-        }
+        // Capture intensities for display
+        self.generatedPrimaryIntensity = selectedIntensity
+        self.generatedSecondaryIntensity = secondaryIntensity
         
         // Clear inputs immediately
         inputText = ""
-        clearMedia()
         
-        // Generate POSTERIZED level (highest)
-        let posterizedPrompt = buildRoastPrompt(for: inputForRoast, intensity: .posterized)
+        // Generate PRIMARY roast (Selected Intensity)
+        let primaryPrompt = buildRoastPrompt(for: inputForRoast, intensity: selectedIntensity)
         
         do {
-            // Generate posterized roast (non-streaming)
+            // Generate primary roast (non-streaming)
             let response = try await llmManager.sendPrompt(
-                posterizedPrompt,
+                primaryPrompt,
                 context: [],
-                attachments: attachments
+                attachments: []
             )
-            self.currentRoast = response.content
+            self.primaryRoastText = response.content
             
-            // Generate medium level roast
-            await self.generateMediumRoast(
+            // Generate SECONDARY roast (Alternative)
+            await self.generateSecondaryRoast(
                 using: llmManager,
                 userId: userId,
                 inputForRoast: inputForRoast,
                 usageManager: usageManager,
                 isFirstRoast: isFirstRoast,
-                onFirstRoast: onFirstRoast,
-                attachments: attachments
+                onFirstRoast: onFirstRoast
             )
         } catch {
             self.error = error
@@ -200,38 +153,34 @@ class HomeViewModel: ObservableObject {
         }
     }
     
-    private func generateMediumRoast(
+    private func generateSecondaryRoast(
         using llmManager: LLMManager,
         userId: String,
         inputForRoast: String,
         usageManager: UsageManager?,
         isFirstRoast: Bool,
-        onFirstRoast: (() -> Void)?,
-        attachments: [MediaAttachment]
+        onFirstRoast: (() -> Void)?
     ) async {
-        let mediumPrompt = buildRoastPrompt(for: inputForRoast, intensity: .dunkedOn)
+        let secondaryPrompt = buildRoastPrompt(for: inputForRoast, intensity: secondaryIntensity)
         
         do {
-            // Generate medium roast (non-streaming for simplicity)
+            // Generate secondary roast
             let response = try await llmManager.sendPrompt(
-                mediumPrompt,
+                secondaryPrompt,
                 context: [],
-                attachments: attachments
+                attachments: []
             )
-            self.mediumRoast = response.content
+            self.secondaryRoastText = response.content
             
-            // Determine source type (OCR if image was present)
-            let source: RoastInputSource = attachments.isEmpty ? .text : .ocr
-            
-            // Create session with both roast levels
+            // Create session
             let session = RoastSession(
                 userId: userId,
                 inputText: inputForRoast,
-                roastText: self.currentRoast,
-                secondaryRoastText: self.mediumRoast,
-                imageURL: attachments.first?.localURL?.absoluteString, // Save local URL for now
+                roastText: self.primaryRoastText,
+                secondaryRoastText: self.secondaryRoastText,
+                imageURL: nil,
                 ocrText: nil,
-                source: source,
+                source: .text,
                 intensity: self.selectedIntensity,
                 sport: userPreferences?.selectedSport ?? .nba
             )
@@ -260,41 +209,44 @@ class HomeViewModel: ObservableObject {
     func regenerateRoast(using llmManager: LLMManager, userId: String, usageManager: UsageManager? = nil) async {
         // Use the submitted input to regenerate
         inputText = submittedInput
-        // We probably should persist the previous media here if we want to regenerate with image, 
-        // but simple regeneration might just use text context. 
-        // For now, let's assume regeneration clears currentRoast but uses stored text. 
-        // If image was used, we'd need to keep `submittedMedia`. 
-        // Skipping complex media regeneration logic for now to keep it simple.
-        
-        currentRoast = ""
-        mediumRoast = ""
+        primaryRoastText = ""
+        secondaryRoastText = ""
         await generateRoast(using: llmManager, userId: userId, usageManager: usageManager)
     }
     
     func clearOutput() {
-        currentRoast = ""
-        mediumRoast = ""
+        primaryRoastText = ""
+        secondaryRoastText = ""
         submittedInput = ""
         inputText = ""
-        clearMedia()
         currentSession = nil
+        error = nil
+        generatedPrimaryIntensity = nil
+        generatedSecondaryIntensity = nil
     }
     
     func loadSession(_ session: RoastSession) {
         self.currentSession = session
         self.submittedInput = session.inputText
-        self.currentRoast = session.roastText
-        self.mediumRoast = session.secondaryRoastText ?? ""
+        self.primaryRoastText = session.roastText
+        self.secondaryRoastText = session.secondaryRoastText ?? ""
         self.inputText = ""
-        // TODO: Load image from session.imageURL if needed for display
         self.isGenerating = false
+        
+        // Restore generated intensities from session
+        self.generatedPrimaryIntensity = session.intensity
+        // Determine what the secondary intensity would have been
+        switch session.intensity {
+        case .posterized: self.generatedSecondaryIntensity = .dunkedOn
+        case .dunkedOn: self.generatedSecondaryIntensity = .posterized
+        case .trashTalk: self.generatedSecondaryIntensity = .dunkedOn
+        }
     }
     
     // MARK: - Prompt Building
     
     private func buildRoastPrompt(for text: String, intensity: RoastIntensity) -> String {
-        let hasImageContext = selectedImage != nil ? "The user has provided an image to be roasted." : ""
-        let textContext = text.isEmpty ? "Roast this image based on its visual content." : "\"\(text)\""
+        let textContext = text.isEmpty ? "Roast this generic situation." : "\"\(text)\""
         
         return """
         You are a savage but clever NBA roast writer creating short, punchy basketball roasts meant for group chats and memes.
@@ -302,8 +254,6 @@ class HomeViewModel: ObservableObject {
         Goal:
         Generate ONE high-impact NBA roast based on the user’s context. The roast should be funny, sharp, and immediately understandable to NBA fans.
         
-        \(hasImageContext)
-
         Tone & style:
         - Witty, confident, and ruthless but playful
         - Reads like something that would get screenshotted in a group chat
@@ -337,12 +287,11 @@ class HomeViewModel: ObservableObject {
     // MARK: - Actions
     
     func copyRoast() {
-        UIPasteboard.general.string = currentRoast
-        // TODO: Show success toast/feedback
+        UIPasteboard.general.string = primaryRoastText
     }
     
     func shareRoast(_ text: String? = nil) {
-        let textToShare = text ?? currentRoast
+        let textToShare = text ?? primaryRoastText
         guard !textToShare.isEmpty else { return }
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = scene.windows.first,
@@ -367,7 +316,6 @@ class HomeViewModel: ObservableObject {
     
     func clearInput() {
         inputText = ""
-        clearMedia()
     }
     
     // MARK: - Data Persistence

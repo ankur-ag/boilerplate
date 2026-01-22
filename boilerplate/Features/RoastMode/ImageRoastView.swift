@@ -12,7 +12,7 @@ import UIKit
 
 struct ImageRoastView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel = ImageRoastViewModel()
+    @ObservedObject private var viewModel: ImageRoastViewModel
     @EnvironmentObject private var llmManager: LLMManager
     @EnvironmentObject private var imageGenerationManager: ImageGenerationManager
     @EnvironmentObject private var authManager: AuthManager
@@ -24,7 +24,8 @@ struct ImageRoastView: View {
     
     let initialSession: RoastSession?
     
-    init(session: RoastSession? = nil) {
+    init(viewModel: ImageRoastViewModel? = nil, session: RoastSession? = nil) {
+        self.viewModel = viewModel ?? ImageRoastViewModel()
         self.initialSession = session
     }
     
@@ -155,19 +156,25 @@ struct ImageRoastView: View {
     
     private var roastImagesSection: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
-            // POSTERIZED (Highest level)
-            roastImageCard(
-                intensity: .posterized,
-                imageURL: viewModel.posterizedImage,
-                borderColor: Color(hex: "FF4500")
-            )
+            // Primary Roast (Generated Intensity - fixed after generation)
+            if let primaryIntensity = viewModel.generatedPrimaryIntensity {
+                roastImageCard(
+                    intensity: primaryIntensity,
+                    imageURL: viewModel.primaryImageURL,
+                    borderColor: primaryIntensity == .posterized ? Color(hex: "FF4500") :
+                                 primaryIntensity == .dunkedOn ? Color(hex: "FF8C00") :
+                                 Color(hex: "FFCC00")
+                )
+            }
             
-            // DUNKED ON (Medium level)
-            roastImageCard(
-                intensity: .dunkedOn,
-                imageURL: viewModel.dunkedOnImage,
-                borderColor: DesignSystem.Colors.accentCyan
-            )
+            // Secondary Roast (Generated Intensity - fixed after generation)
+            if let secondaryIntensity = viewModel.generatedSecondaryIntensity {
+                roastImageCard(
+                    intensity: secondaryIntensity,
+                    imageURL: viewModel.secondaryImageURL,
+                    borderColor: DesignSystem.Colors.textSecondary.opacity(0.3)
+                )
+            }
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
     }
@@ -507,13 +514,17 @@ struct ImageRoastView: View {
 class ImageRoastViewModel: ObservableObject {
     @Published var inputText: String = ""
     @Published var submittedInput: String = ""
-    @Published var posterizedImage: String? = nil  // URL to generated image
-    @Published var dunkedOnImage: String? = nil     // URL to generated image
+    @Published var primaryImageURL: String? = nil  // URL to generated image (Selected Intensity)
+    @Published var secondaryImageURL: String? = nil // URL to generated image (Alternative)
     @Published var selectedIntensity: RoastIntensity = .posterized
     @Published var isGenerating: Bool = false
     @Published var error: Error?
     @Published var userPreferences: UserSportsPreferences?
     @Published private(set) var currentSession: RoastSession?
+    
+    // Captured intensities for display (fixed after generation)
+    @Published var generatedPrimaryIntensity: RoastIntensity?
+    @Published var generatedSecondaryIntensity: RoastIntensity?
     
     // Media Input
     @Published var selectedImage: UIImage?
@@ -530,9 +541,18 @@ class ImageRoastViewModel: ObservableObject {
     private let storageManager = StorageManager()
     private let firebaseService = FirebaseService.shared
     private let mediaManager = MediaManager()
+    private var hasLoadedPreferences = false
     
     var hasOutput: Bool {
-        posterizedImage != nil || dunkedOnImage != nil
+        primaryImageURL != nil || secondaryImageURL != nil
+    }
+    
+    var secondaryIntensity: RoastIntensity {
+        switch selectedIntensity {
+        case .posterized: return .dunkedOn
+        case .dunkedOn: return .posterized
+        case .trashTalk: return .dunkedOn
+        }
     }
     
     var canGenerate: Bool {
@@ -551,6 +571,10 @@ class ImageRoastViewModel: ObservableObject {
     }
     
     func refreshPreferences(userId: String) async {
+        // Only refresh once to avoid overwriting user's current selection
+        guard !hasLoadedPreferences else { return }
+        hasLoadedPreferences = true
+        
         do {
             if let cloudPrefs = try await firebaseService.loadUserPreferences(userId: userId) {
                 await MainActor.run {
@@ -603,11 +627,11 @@ class ImageRoastViewModel: ObservableObject {
         guard canGenerate else { return }
         
         // Track if this is first roast
-        let isFirstRoast = usageManager?.imageRoastCount == 0
+        let isFirstRoast: Bool = usageManager?.imageRoastCount == 0
         
         isGenerating = true
-        posterizedImage = nil
-        dunkedOnImage = nil
+        primaryImageURL = nil
+        secondaryImageURL = nil
         error = nil
         
         let inputForRoast = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -625,61 +649,68 @@ class ImageRoastViewModel: ObservableObject {
         // Build roast prompt with context
         let roastPrompt = buildImageRoastPrompt(input: inputForRoast)
         
+        let primaryInt = self.selectedIntensity
+        let secondaryInt = self.secondaryIntensity
+        
+        // Capture intensities for display
+        self.generatedPrimaryIntensity = primaryInt
+        self.generatedSecondaryIntensity = secondaryInt
+        
         do {
-            // Parallel Generation using async let
-            print("🚀 Starting parallel image generation...")
+            // Parallel Generation
+            print("🚀 Starting parallel image generation for \(primaryInt.rawValue) and \(secondaryInt.rawValue)...")
             
-            async let posterizedResult: GeneratedImage? = {
+            async let primaryResult: GeneratedImage? = {
                 do {
-                    print("🎨 Generating POSTERIZED image...")
-                    return try await imageGenManager.generateImage(prompt: roastPrompt, style: .posterized, inputImage: inputImageData)
+                    print("🎨 Generating PRIMARY (\(primaryInt.rawValue)) image...")
+                    return try await imageGenManager.generateImage(prompt: roastPrompt, style: primaryInt.toImageStyle, inputImage: inputImageData)
                 } catch {
-                    print("⚠️ [ViewModel] Posterized generation failed: \(error.localizedDescription)")
+                    print("⚠️ [ViewModel] Primary generation failed: \(error.localizedDescription)")
                     return nil
                 }
             }()
             
-            async let dunkedOnResult: GeneratedImage? = {
+            async let secondaryResult: GeneratedImage? = {
                 do {
-                    print("🎨 Generating DUNKED ON image...")
-                    return try await imageGenManager.generateImage(prompt: roastPrompt, style: .dunkedOn, inputImage: inputImageData)
+                    print("🎨 Generating SECONDARY (\(secondaryInt.rawValue)) image...")
+                    return try await imageGenManager.generateImage(prompt: roastPrompt, style: secondaryInt.toImageStyle, inputImage: inputImageData)
                 } catch {
-                    print("⚠️ [ViewModel] Dunked On generation failed: \(error.localizedDescription)")
+                    print("⚠️ [ViewModel] Secondary generation failed: \(error.localizedDescription)")
                     return nil
                 }
             }()
             
             // Await both results
-            let (posterized, dunkedOn) = await (posterizedResult, dunkedOnResult)
+            let (primary, secondary) = await (primaryResult, secondaryResult)
             
             // Process Results
-            var posterizedURL: String?
-            if let img = posterized {
-                posterizedImage = img.imageURL
-                posterizedURL = img.imageURL
+            var primaryURLStr: String?
+            if let img = primary {
+                primaryImageURL = img.imageURL
+                primaryURLStr = img.imageURL
             }
             
-            var dunkedOnURL: String?
-            if let img = dunkedOn {
-                dunkedOnImage = img.imageURL
-                dunkedOnURL = img.imageURL
+            var secondaryURLStr: String?
+            if let img = secondary {
+                secondaryImageURL = img.imageURL
+                secondaryURLStr = img.imageURL
             }
             
-            // Set error if both failed (for UI feedback)
-            if posterized == nil && dunkedOn == nil {
+            // Set error if both failed
+            if primary == nil && secondary == nil {
                 print("❌ [ViewModel] Both image generation levels failed")
                 if self.error == nil { self.error = ImageGenerationError.generationFailed("Could not generate any images") }
             }
             
             // Proceed if we have AT LEAST ONE image
-            if let pURL = posterizedURL {
-                print("✅ Image roast generated (at least one level)")
+            if let pURL = primaryURLStr {
+                print("✅ Image roast generated (at least primary)")
                 await createAndUploadSession(
                     userId: userId,
                     input: inputForRoast,
                     localURL: pURL,
-                    secondaryLocalURL: dunkedOnURL,
-                    intensity: self.selectedIntensity,
+                    secondaryLocalURL: secondaryURLStr,
+                    intensity: primaryInt,
                     onSuccess: {
                         usageManager?.incrementImageRoastCount()
                         if isFirstRoast {
@@ -687,25 +718,24 @@ class ImageRoastViewModel: ObservableObject {
                         }
                     }
                 )
-            } else if let dURL = dunkedOnURL {
-                // Secondary only success
+            } else if let sURL = secondaryURLStr {
+                // Secondary only success - treat as primary for session or just show it
                 print("✅ Image roast generated (only secondary level)")
                 await createAndUploadSession(
                     userId: userId,
                     input: inputForRoast,
-                    localURL: dURL, // Use dunkedOn as primary
+                    localURL: sURL, // Fallback: use secondary as primary file
                     secondaryLocalURL: nil,
-                    intensity: self.selectedIntensity,
+                    intensity: primaryInt, // Keep requested intensity tag even if fallback? Or switch? Let's keep requested.
                     onSuccess: {
                         usageManager?.incrementImageRoastCount()
                         if isFirstRoast {
                             onFirstRoast?()
                         }
                     }
-                 )
-                 // Update UI to show this as primary
-                 posterizedImage = dURL
-                 dunkedOnImage = nil
+                )
+                 // Update UI to show this as primary so the user sees something in the main slot?
+                 // Actually, better to show it in secondary slot if that's where it belongs, but for now let's just leave it populated in secondary.
             }
         }
         
@@ -720,64 +750,69 @@ class ImageRoastViewModel: ObservableObject {
         guard !submittedInput.isEmpty else { return }
         
         isGenerating = true
-        let oldPosterized = posterizedImage
-        let oldDunkedOn = dunkedOnImage
-        posterizedImage = nil
-        dunkedOnImage = nil
+        let oldPrimary = primaryImageURL
+        let oldSecondary = secondaryImageURL
+        primaryImageURL = nil
+        secondaryImageURL = nil
         error = nil
         
         let roastPrompt = buildImageRoastPrompt(input: submittedInput)
+        let primaryInt = self.selectedIntensity
+        let secondaryInt = self.secondaryIntensity
+        
+        // Capture intensities for display
+        self.generatedPrimaryIntensity = primaryInt
+        self.generatedSecondaryIntensity = secondaryInt
         
         do {
-            // Level 1: POSTERIZED
-            var posterizedURL: String?
+            // Level 1: PRIMARY
+            var primaryURLStr: String?
             do {
-                let posterized = try await imageGenManager.generateImage(prompt: roastPrompt, style: .posterized)
-                posterizedImage = posterized.imageURL
-                posterizedURL = posterized.imageURL
+                let primary = try await imageGenManager.generateImage(prompt: roastPrompt, style: primaryInt.toImageStyle)
+                primaryImageURL = primary.imageURL
+                primaryURLStr = primary.imageURL
             } catch {
-                print("⚠️ [ViewModel] Posterized regeneration failed: \(error.localizedDescription)")
+                print("⚠️ [ViewModel] Primary regeneration failed: \(error.localizedDescription)")
             }
             
-            // Level 2: DUNKED ON
-            var dunkedOnURL: String?
+            // Level 2: SECONDARY
+            var secondaryURLStr: String?
             do {
-                let dunkedOn = try await imageGenManager.generateImage(prompt: roastPrompt, style: .dunkedOn)
-                dunkedOnImage = dunkedOn.imageURL
-                dunkedOnURL = dunkedOn.imageURL
+                let secondary = try await imageGenManager.generateImage(prompt: roastPrompt, style: secondaryInt.toImageStyle)
+                secondaryImageURL = secondary.imageURL
+                secondaryURLStr = secondary.imageURL
             } catch {
-                print("⚠️ [ViewModel] Dunked On regeneration failed: \(error.localizedDescription)")
+                print("⚠️ [ViewModel] Secondary regeneration failed: \(error.localizedDescription)")
             }
             
             // Update if we have AT LEAST ONE new image
-            if let pURL = posterizedURL {
-                print("✅ Image roasts regenerated (at least one level)")
+            if let pURL = primaryURLStr {
+                print("✅ Image roasts regenerated (at least primary)")
                 await createAndUploadSession(
                     userId: userId,
                     input: submittedInput,
                     localURL: pURL,
-                    secondaryLocalURL: dunkedOnURL,
-                    intensity: self.selectedIntensity,
+                    secondaryLocalURL: secondaryURLStr,
+                    intensity: primaryInt,
                     onSuccess: {
                         usageManager?.incrementImageRoastCount()
                     }
                 )
-            } else if let dURL = dunkedOnURL {
+            } else if let sURL = secondaryURLStr {
                  // Special case: Only second succeeds
                  print("✅ Image roast regenerated (only secondary level)")
-                 // In this case we might want to keep the old posterized or leave it nil
-                 // For now, let's treat posterized as primary and required for new sessions
-                 // (Or refactor createAndUploadSession to be more flexible)
+                 primaryImageURL = sURL // Fallback? Or just keep secondary? Let's promote to primary for visibility if primary failed.
+                 secondaryImageURL = nil // Clear secondary since we moved it
             } else {
                 // Restore old images on total failure
-                posterizedImage = oldPosterized
-                dunkedOnImage = oldDunkedOn
+                primaryImageURL = oldPrimary
+                secondaryImageURL = oldSecondary
                 self.error = ImageGenerationError.generationFailed("Regeneration failed for all levels")
             }
         } catch {
             // Restore old images on error
-            posterizedImage = oldPosterized
-            dunkedOnImage = oldDunkedOn
+            primaryImageURL = oldPrimary
+            secondaryImageURL = oldSecondary
             self.error = error
         }
         
@@ -813,22 +848,33 @@ class ImageRoastViewModel: ObservableObject {
     }
     
     func clearOutput() {
-        posterizedImage = nil
-        dunkedOnImage = nil
+        primaryImageURL = nil
+        secondaryImageURL = nil
         submittedInput = ""
         inputText = ""
         clearMedia()
         error = nil
         currentSession = nil
+        generatedPrimaryIntensity = nil
+        generatedSecondaryIntensity = nil
     }
     
     func loadSession(_ session: RoastSession) {
         self.currentSession = session
         self.submittedInput = session.inputText
-        self.posterizedImage = session.imageURL
-        self.dunkedOnImage = session.secondaryImageURL
+        self.primaryImageURL = session.imageURL
+        self.secondaryImageURL = session.secondaryImageURL
         self.inputText = ""
         self.isGenerating = false
+        
+        // Restore generated intensities from session
+        self.generatedPrimaryIntensity = session.intensity
+        // Determine what the secondary intensity would have been
+        switch session.intensity {
+        case .posterized: self.generatedSecondaryIntensity = .dunkedOn
+        case .dunkedOn: self.generatedSecondaryIntensity = .posterized
+        case .trashTalk: self.generatedSecondaryIntensity = .dunkedOn
+        }
     }
     
     func clearError() {
@@ -918,4 +964,16 @@ class ImageRoastViewModel: ObservableObject {
         .environmentObject(AuthManager())
         .environmentObject(SubscriptionManager())
         .environmentObject(UsageManager())
+}
+
+// MARK: - Extensions
+
+extension RoastIntensity {
+    var toImageStyle: ImageStyle {
+        switch self {
+        case .posterized: return .posterized
+        case .dunkedOn: return .dunkedOn
+        case .trashTalk: return .trashTalk
+        }
+    }
 }

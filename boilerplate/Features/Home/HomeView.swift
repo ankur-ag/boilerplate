@@ -10,7 +10,7 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(\.dismiss) private var dismiss
-    @StateObject private var viewModel = HomeViewModel()
+    @ObservedObject private var viewModel: HomeViewModel
     @EnvironmentObject private var llmManager: LLMManager
     @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var subscriptionManager: SubscriptionManager
@@ -20,7 +20,8 @@ struct HomeView: View {
     
     let initialSession: RoastSession?
     
-    init(session: RoastSession? = nil) {
+    init(viewModel: HomeViewModel? = nil, session: RoastSession? = nil) {
+        self.viewModel = viewModel ?? HomeViewModel()
         self.initialSession = session
     }
     
@@ -162,19 +163,27 @@ struct HomeView: View {
     
     private var roastOutputsSection: some View {
         VStack(spacing: DesignSystem.Spacing.md) {
-            // POSTERIZED (Highest level)
-            roastOutputCard(
-                intensity: .posterized,
-                text: viewModel.currentRoast,
-                borderColor: Color(hex: "FF4500")
-            )
+            // Primary Roast (Generated Intensity - fixed after generation)
+            if let primaryIntensity = viewModel.generatedPrimaryIntensity {
+                roastOutputCard(
+                    intensity: primaryIntensity,
+                    text: viewModel.primaryRoastText,
+                    borderColor: primaryIntensity == .posterized ? Color(hex: "FF4500") : 
+                                 primaryIntensity == .dunkedOn ? DesignSystem.Colors.accentCyan :
+                                 DesignSystem.Colors.primaryOrange
+                )
+            }
             
-            // DUNKED ON (Medium level)
-            roastOutputCard(
-                intensity: .dunkedOn,
-                text: viewModel.mediumRoast,
-                borderColor: DesignSystem.Colors.accentCyan
-            )
+            // Secondary Roast (Generated Intensity - fixed after generation)
+            if let secondaryIntensity = viewModel.generatedSecondaryIntensity {
+                roastOutputCard(
+                    intensity: secondaryIntensity,
+                    text: viewModel.secondaryRoastText,
+                    borderColor: secondaryIntensity == .posterized ? Color(hex: "FF4500") : 
+                                 secondaryIntensity == .dunkedOn ? DesignSystem.Colors.accentCyan :
+                                 DesignSystem.Colors.primaryOrange
+                )
+            }
         }
     }
     

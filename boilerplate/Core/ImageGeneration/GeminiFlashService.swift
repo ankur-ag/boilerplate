@@ -24,15 +24,12 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         // Build the enhanced prompt for Gemini
         let enhancedPrompt = buildImagePrompt(userPrompt: prompt, style: style, hasInputImage: inputImage != nil)
         
-        // Debug: Log masked key to verify consistency
-        let keyLength = apiKey.count
-        let maskedKey = keyLength > 8 ? "\(apiKey.prefix(4))...\(apiKey.suffix(4))" : "***"
-        print("🔑 [Gemini Flash] Using API Key: \(maskedKey) (Length: \(keyLength))")
+
         
         // This endpoint was identified from earlier git history
         let endpoint = "\(baseURL)/models/gemini-2.5-flash-image:generateContent?key=\(apiKey)"
         
-        print("🌐 [Gemini Flash] Request URL: \(baseURL)/models/gemini-2.5-flash-image:generateContent")
+
         
         guard let url = URL(string: endpoint) else {
             throw ImageGenerationError.invalidRequest
@@ -42,8 +39,7 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
-        // Create request body with the Enhanced Prompt
-        print("💬 [Gemini Flash] Image Prompt:\n\(enhancedPrompt)")
+
         
         var parts: [[String: Any]] = [
             ["text": enhancedPrompt]
@@ -91,12 +87,7 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         
         let (data, response) = try await session.data(for: request)
         
-        // Log Raw Response
-        if let responseString = String(data: data, encoding: .utf8) {
-            // Truncate if too long to avoid console spam, but show enough for error
-            let logString = responseString.count > 1000 ? String(responseString.prefix(1000)) + "... (truncated)" : responseString
-            print("📦 Raw Response: \(logString)")
-        }
+
         
         guard let httpResponse = response as? HTTPURLResponse else {
             throw ImageGenerationError.networkError
@@ -134,7 +125,6 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
             if let inlineData = part["inlineData"] as? [String: Any],
                let base64Data = inlineData["data"] as? String {
                 imageData = Data(base64Encoded: base64Data)
-                print("✅ [Gemini Flash] Found image data in response")
             } else if let text = part["text"] as? String {
                 imageDescription = text
             }
@@ -150,7 +140,7 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         let fileURL = try getDocumentsDirectory().appendingPathComponent(fileName)
         try finalImageData.write(to: fileURL)
         
-        print("✅ Generated image saved to: \(fileURL.path)")
+        print("✅ [Gemini] Image saved: \(fileName)")
         
         return GeneratedImage(
             imageURL: fileURL.absoluteString,
