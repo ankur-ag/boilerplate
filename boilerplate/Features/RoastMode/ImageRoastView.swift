@@ -7,6 +7,8 @@
 //
 
 import SwiftUI
+import PhotosUI
+import UIKit
 
 struct ImageRoastView: View {
     @Environment(\.dismiss) private var dismiss
@@ -343,17 +345,22 @@ struct ImageRoastView: View {
             HStack(spacing: DesignSystem.Spacing.sm) {
                 // Plus Button
                 Button(action: {
-                    // Add media or options
+                    viewModel.showPhotoPicker = true
                 }) {
                     Image(systemName: "plus")
                         .font(.title2)
                         .foregroundColor(DesignSystem.Colors.accentCyan)
                         .frame(width: 44, height: 44)
                 }
+                .photosPicker(
+                    isPresented: $viewModel.showPhotoPicker,
+                    selection: $viewModel.photoSelection,
+                    matching: .images
+                )
                 
                 // Text Input
                 ZStack(alignment: .leading) {
-                    if viewModel.inputText.isEmpty && !isInputFocused {
+                    if viewModel.inputText.isEmpty && !isInputFocused && viewModel.selectedImage == nil {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("e.g. My Lakers friend talking trash after getting swept...")
                                 .font(DesignSystem.Typography.footnote)
@@ -374,11 +381,35 @@ struct ImageRoastView: View {
                         .padding(.leading, DesignSystem.Spacing.sm)
                     }
                     
-                    TextField("", text: $viewModel.inputText)
-                        .font(DesignSystem.Typography.body)
-                        .foregroundColor(DesignSystem.Colors.textPrimary)
-                        .focused($isInputFocused)
-                        .padding(DesignSystem.Spacing.sm)
+                    HStack {
+                         if let image = viewModel.selectedImage {
+                            ZStack(alignment: .topTrailing) {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: 40, height: 40)
+                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                
+                                Button(action: {
+                                    viewModel.clearMedia()
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.white)
+                                        .background(Color.black.opacity(0.5))
+                                        .clipShape(Circle())
+                                }
+                                .offset(x: 4, y: -4)
+                            }
+                            .padding(.leading, 4)
+                        }
+                        
+                        TextField("", text: $viewModel.inputText)
+                            .font(DesignSystem.Typography.body)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .focused($isInputFocused)
+                            .padding(DesignSystem.Spacing.sm)
+                    }
                 }
                 .frame(height: 44)
                 .background(DesignSystem.Colors.backgroundCard)
@@ -484,15 +515,28 @@ class ImageRoastViewModel: ObservableObject {
     @Published var userPreferences: UserSportsPreferences?
     @Published private(set) var currentSession: RoastSession?
     
+    // Media Input
+    @Published var selectedImage: UIImage?
+    @Published var selectedMedia: MediaAttachment?
+    @Published var showPhotoPicker: Bool = false
+    @Published var photoSelection: PhotosPickerItem? {
+        didSet {
+            if photoSelection != nil {
+                Task { await handlePhotoSelection() }
+            }
+        }
+    }
+    
     private let storageManager = StorageManager()
     private let firebaseService = FirebaseService.shared
+    private let mediaManager = MediaManager()
     
     var hasOutput: Bool {
         posterizedImage != nil || dunkedOnImage != nil
     }
     
     var canGenerate: Bool {
-        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isGenerating
+        (!inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || selectedImage != nil) && !isGenerating
     }
     
     init() {
@@ -521,6 +565,33 @@ class ImageRoastViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Media Handling
+    
+    func handlePhotoSelection() async {
+        guard let item = photoSelection else { return }
+        
+        do {
+            let attachments = try await mediaManager.processPhotoPickerResults([item])
+            if let attachment = attachments.first {
+                await MainActor.run {
+                    self.selectedMedia = attachment
+                    if let data = attachment.thumbnailData {
+                        self.selectedImage = UIImage(data: data)
+                    }
+                }
+            }
+        } catch {
+            print("❌ Error processing photo selection: \(error)")
+            self.error = error
+        }
+    }
+    
+    func clearMedia() {
+        selectedImage = nil
+        selectedMedia = nil
+        photoSelection = nil
+    }
+    
     // MARK: - Image Roast Generation
     
     func generateImageRoast(
@@ -541,6 +612,13 @@ class ImageRoastViewModel: ObservableObject {
         
         let inputForRoast = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         submittedInput = inputForRoast
+        
+        // Prepare image data if available
+        var inputImageData: Data?
+        if let media = selectedMedia, let url = media.localURL {
+             inputImageData = try? Data(contentsOf: url)
+        }
+        
         inputText = ""
         
         // Build roast prompt with context
@@ -553,7 +631,7 @@ class ImageRoastViewModel: ObservableObject {
             async let posterizedResult: GeneratedImage? = {
                 do {
                     print("🎨 Generating POSTERIZED image...")
-                    return try await imageGenManager.generateImage(prompt: roastPrompt, style: .posterized)
+                    return try await imageGenManager.generateImage(prompt: roastPrompt, style: .posterized, inputImage: inputImageData)
                 } catch {
                     print("⚠️ [ViewModel] Posterized generation failed: \(error.localizedDescription)")
                     return nil
@@ -563,7 +641,7 @@ class ImageRoastViewModel: ObservableObject {
             async let dunkedOnResult: GeneratedImage? = {
                 do {
                     print("🎨 Generating DUNKED ON image...")
-                    return try await imageGenManager.generateImage(prompt: roastPrompt, style: .dunkedOn)
+                    return try await imageGenManager.generateImage(prompt: roastPrompt, style: .dunkedOn, inputImage: inputImageData)
                 } catch {
                     print("⚠️ [ViewModel] Dunked On generation failed: \(error.localizedDescription)")
                     return nil
@@ -630,6 +708,7 @@ class ImageRoastViewModel: ObservableObject {
             }
         }
         
+        self.clearMedia()
         isGenerating = false
     }
     
@@ -738,6 +817,7 @@ class ImageRoastViewModel: ObservableObject {
         dunkedOnImage = nil
         submittedInput = ""
         inputText = ""
+        clearMedia()
         error = nil
         currentSession = nil
     }

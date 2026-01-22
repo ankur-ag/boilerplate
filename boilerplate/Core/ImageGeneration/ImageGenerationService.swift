@@ -12,7 +12,7 @@ import UIKit
 // MARK: - Image Generation Service Protocol
 
 protocol ImageGenerationServiceProtocol {
-    func generateImage(prompt: String, style: ImageStyle) async throws -> GeneratedImage
+    func generateImage(prompt: String, style: ImageStyle, inputImage: Data?) async throws -> GeneratedImage
 }
 
 // MARK: - Image Generation Manager
@@ -30,7 +30,7 @@ class ImageGenerationManager: ObservableObject {
         self.service = service
     }
     
-    func generateImage(prompt: String, style: ImageStyle = .posterized) async throws -> GeneratedImage {
+    func generateImage(prompt: String, style: ImageStyle = .posterized, inputImage: Data? = nil) async throws -> GeneratedImage {
         guard let service = service else {
             throw ImageGenerationError.serviceNotConfigured
         }
@@ -43,7 +43,7 @@ class ImageGenerationManager: ObservableObject {
         }
         
         do {
-            let image = try await service.generateImage(prompt: prompt, style: style)
+            let image = try await service.generateImage(prompt: prompt, style: style, inputImage: inputImage)
             return image
         } catch {
             let imageError = error as? ImageGenerationError ?? .generationFailed(error.localizedDescription)

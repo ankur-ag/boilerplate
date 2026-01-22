@@ -20,9 +20,9 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         self.apiKey = apiKey
     }
     
-    func generateImage(prompt: String, style: ImageStyle) async throws -> GeneratedImage {
+    func generateImage(prompt: String, style: ImageStyle, inputImage: Data? = nil) async throws -> GeneratedImage {
         // Build the enhanced prompt for Gemini
-        let enhancedPrompt = buildImagePrompt(userPrompt: prompt, style: style)
+        let enhancedPrompt = buildImagePrompt(userPrompt: prompt, style: style, hasInputImage: inputImage != nil)
         
         // Debug: Log masked key to verify consistency
         let keyLength = apiKey.count
@@ -45,12 +45,25 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         // Create request body with the Enhanced Prompt
         print("💬 [Gemini Flash] Image Prompt:\n\(enhancedPrompt)")
         
+        var parts: [[String: Any]] = [
+            ["text": enhancedPrompt]
+        ]
+        
+        if let imageData = inputImage {
+            let base64Image = imageData.base64EncodedString()
+            parts.append([
+                "inlineData": [
+                    "mimeType": "image/jpeg",
+                    "data": base64Image
+                ]
+            ])
+            print("📸 [Gemini Flash] Attached reference image (\(imageData.count) bytes)")
+        }
+        
         let requestBody: [String: Any] = [
             "contents": [
                 [
-                    "parts": [
-                        ["text": enhancedPrompt]
-                    ]
+                    "parts": parts
                 ]
             ],
             "generationConfig": [
@@ -134,7 +147,7 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         try FileManager.default.url(for: .documentDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
     }
     
-    private func buildImagePrompt(userPrompt: String, style: ImageStyle) -> String {
+    private func buildImagePrompt(userPrompt: String, style: ImageStyle, hasInputImage: Bool) -> String {
         return """
         You are an AI image director creating a single savage, funny NBA-themed roast image designed to go viral in group chats.
 
@@ -159,7 +172,7 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         Inputs:
         - Context: \(userPrompt)
         - Intensity: \(style.rawValue.replacingOccurrences(of: "_", with: " "))
-        - Has Reference Image: false
+        - Has Reference Image: \(hasInputImage)
 
         Reference image behavior:
         - If {has_reference_image} == true:
