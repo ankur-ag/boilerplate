@@ -70,7 +70,6 @@ struct ImageRoastView: View {
                 Spacer()
                 bottomInputSection
             }
-            .ignoresSafeArea(.keyboard)
             
             .alert("Error", isPresented: .constant(viewModel.error != nil)) {
                 Button("OK") {
@@ -81,6 +80,10 @@ struct ImageRoastView: View {
                     Text(error.localizedDescription)
                 }
             }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isInputFocused = false
         }
         .navigationBarBackButtonHidden(true)
         .onAppear {
@@ -411,14 +414,15 @@ struct ImageRoastView: View {
                             .padding(.leading, 4)
                         }
                         
-                        TextField("", text: $viewModel.inputText)
+                        TextField("", text: $viewModel.inputText, axis: .vertical)
                             .font(DesignSystem.Typography.body)
                             .foregroundColor(DesignSystem.Colors.textPrimary)
                             .focused($isInputFocused)
                             .padding(DesignSystem.Spacing.sm)
+                            .lineLimit(1...5)
                     }
                 }
-                .frame(height: 44)
+                .frame(minHeight: 44)
                 .background(DesignSystem.Colors.backgroundCard)
                 .cornerRadius(DesignSystem.CornerRadius.lg)
                 
@@ -734,8 +738,9 @@ class ImageRoastViewModel: ObservableObject {
                         }
                     }
                 )
-                 // Update UI to show this as primary so the user sees something in the main slot?
-                 // Actually, better to show it in secondary slot if that's where it belongs, but for now let's just leave it populated in secondary.
+                if primaryImageURL != nil || secondaryImageURL != nil {
+                    AudioManager.shared.playCrowdCheer()
+                }
             }
         }
         
@@ -796,6 +801,7 @@ class ImageRoastViewModel: ObservableObject {
                     intensity: primaryInt,
                     onSuccess: {
                         usageManager?.incrementImageRoastCount()
+                        AudioManager.shared.playCrowdCheer()
                     }
                 )
             } else if let sURL = secondaryURLStr {
@@ -803,6 +809,7 @@ class ImageRoastViewModel: ObservableObject {
                  print("✅ Image roast regenerated (only secondary level)")
                  primaryImageURL = sURL // Fallback? Or just keep secondary? Let's promote to primary for visibility if primary failed.
                  secondaryImageURL = nil // Clear secondary since we moved it
+                 AudioManager.shared.playCrowdCheer()
             } else {
                 // Restore old images on total failure
                 primaryImageURL = oldPrimary

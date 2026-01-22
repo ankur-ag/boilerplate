@@ -103,70 +103,77 @@ struct OnboardingView: View {
                     .padding(.bottom, DesignSystem.Spacing.xl)
                     
                     // Continue with Apple Button
-                    #if DEBUG
-                    // BYPASS: Simple continue button for development
-                    Button(action: {
-                        Task {
-                            await viewModel.signInAndContinue(authManager: authManager)
-                        }
-                    }) {
-                        HStack(spacing: 12) {
-                            if viewModel.isLoading {
-                                ProgressView()
-                                    .tint(.white)
-                            } else {
-                                Image(systemName: "arrow.right.circle.fill")
-                                    .font(.system(size: 24))
-                                Text("Continue")
-                                    .font(.system(size: 18, weight: .semibold))
+                    VStack(spacing: DesignSystem.Spacing.lg) {
+                        #if DEBUG
+                        // Real Apple Sign In (for testing)
+                        SignInWithAppleButton(
+                            .signIn,
+                            onRequest: { request in
+                                viewModel.configureAppleSignIn(request)
+                            },
+                            onCompletion: { result in
+                                Task {
+                                    await viewModel.handleAppleSignIn(result, authManager: authManager)
+                                }
                             }
-                        }
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
+                        )
+                        .signInWithAppleButtonStyle(.white)
                         .frame(height: 56)
-                        .background(DesignSystem.Colors.primaryOrange)
                         .cornerRadius(DesignSystem.CornerRadius.lg)
-                    }
-                    .disabled(!viewModel.agreedToTerms || viewModel.isLoading)
-                    .opacity(viewModel.agreedToTerms ? 1.0 : 0.5)
-                    .padding(.horizontal, DesignSystem.Spacing.lg)
-                    .padding(.bottom, DesignSystem.Spacing.md)
-                    
-                    Text("DEBUG: Apple Sign In bypassed")
-                        .font(.system(size: 11))
-                        .foregroundColor(DesignSystem.Colors.textTertiary)
-                        .padding(.bottom, DesignSystem.Spacing.xxl)
-                    #else
-                    // PRODUCTION: Real Apple Sign In
-                    SignInWithAppleButton(
-                        .signIn,
-                        onRequest: { request in
-                            viewModel.configureAppleSignIn(request)
-                        },
-                        onCompletion: { result in
+                        .disabled(!viewModel.agreedToTerms || viewModel.isLoading)
+                        .opacity(viewModel.agreedToTerms ? 1.0 : 0.5)
+                        .padding(.horizontal, DesignSystem.Spacing.lg)
+                        
+                        // DEVELOPER BYPASS: Quick skip for simulator or rapid testing
+                        Button(action: {
                             Task {
-                                await viewModel.handleAppleSignIn(result, authManager: authManager)
+                                await viewModel.signInAndContinue(authManager: authManager)
                             }
+                        }) {
+                            Text("Developer Bypass (Skip Apple ID)")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
+                                .padding(.vertical, 8)
+                                .frame(maxWidth: .infinity)
+                                .background(Color.white.opacity(0.1))
+                                .cornerRadius(8)
                         }
-                    )
-                    .signInWithAppleButtonStyle(.white)
-                    .frame(height: 56)
-                    .cornerRadius(DesignSystem.CornerRadius.lg)
-                    .disabled(!viewModel.agreedToTerms || viewModel.isLoading)
-                    .opacity(viewModel.agreedToTerms ? 1.0 : 0.5)
-                    .padding(.horizontal, DesignSystem.Spacing.lg)
-                    .overlay(
-                        Group {
-                            if !viewModel.agreedToTerms || viewModel.isLoading {
-                                Color.black.opacity(0.5)
-                                    .cornerRadius(DesignSystem.CornerRadius.lg)
-                                    .padding(.horizontal, DesignSystem.Spacing.lg)
-                                    .allowsHitTesting(false)
+                        .disabled(!viewModel.agreedToTerms || viewModel.isLoading)
+                        .padding(.horizontal, DesignSystem.Spacing.lg)
+                        
+                        #else
+                        // PRODUCTION: Real Apple Sign In
+                        SignInWithAppleButton(
+                            .signIn,
+                            onRequest: { request in
+                                viewModel.configureAppleSignIn(request)
+                            },
+                            onCompletion: { result in
+                                Task {
+                                    await viewModel.handleAppleSignIn(result, authManager: authManager)
+                                }
                             }
-                        }
-                    )
+                        )
+                        .signInWithAppleButtonStyle(.white)
+                        .frame(height: 56)
+                        .cornerRadius(DesignSystem.CornerRadius.lg)
+                        .disabled(!viewModel.agreedToTerms || viewModel.isLoading)
+                        .opacity(viewModel.agreedToTerms ? 1.0 : 0.5)
+                        .padding(.horizontal, DesignSystem.Spacing.lg)
+                        .overlay(
+                            Group {
+                                if !viewModel.agreedToTerms || viewModel.isLoading {
+                                    Color.black.opacity(0.5)
+                                        .cornerRadius(DesignSystem.CornerRadius.lg)
+                                        .padding(.horizontal, DesignSystem.Spacing.lg)
+                                        .allowsHitTesting(false)
+                                }
+                            }
+                        )
+                        .padding(.bottom, DesignSystem.Spacing.xxl)
+                        #endif
+                    }
                     .padding(.bottom, DesignSystem.Spacing.xxl)
-                    #endif
                     
                     // Page Indicator
                     HStack(spacing: 8) {

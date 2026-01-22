@@ -77,7 +77,6 @@ struct HomeView: View {
                 Spacer()
                 bottomInputSection
             }
-            .ignoresSafeArea(.keyboard)
             
             .alert("Error", isPresented: .constant(viewModel.error != nil)) {
                 Button("OK") {
@@ -88,6 +87,10 @@ struct HomeView: View {
                     Text(error.localizedDescription)
                 }
             }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isInputFocused = false
         }
         .navigationBarBackButtonHidden(true)
         .onAppear {
@@ -311,13 +314,14 @@ struct HomeView: View {
                         .padding(.leading, DesignSystem.Spacing.sm)
                     }
                     
-                    TextField("", text: $viewModel.inputText)
+                    TextField("", text: $viewModel.inputText, axis: .vertical)
                         .font(DesignSystem.Typography.body)
                         .foregroundColor(DesignSystem.Colors.textPrimary)
                         .focused($isInputFocused)
                         .padding(DesignSystem.Spacing.sm)
+                        .lineLimit(1...5) // Allow up to 5 lines before scrolling
                 }
-                .frame(height: 44)
+                .frame(minHeight: 44)
                 .background(DesignSystem.Colors.backgroundCard)
                 .cornerRadius(DesignSystem.CornerRadius.lg)
                 

@@ -1,2 +1,3 @@
 *.xcuserdata
 *.xcuserdatad
+boilerplate/Core/Config/Config.swift

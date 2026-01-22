@@ -11,6 +11,7 @@ import SwiftUI
 struct FeedbackView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = FeedbackViewModel()
+    @FocusState private var isMessageFocused: Bool
     
     var body: some View {
         NavigationStack {
@@ -21,16 +22,22 @@ struct FeedbackView: View {
                 
                 ScrollView {
                     VStack(spacing: 0) {
-                        // Title
-                        Text("Support & Feedback")
-                            .font(.system(size: 28, weight: .bold))
-                            .foregroundColor(DesignSystem.Colors.primaryOrange)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, DesignSystem.Spacing.lg)
-                            .padding(.top, DesignSystem.Spacing.lg)
-                            .padding(.bottom, DesignSystem.Spacing.md)
+                        // Title with Icon
+                        HStack(spacing: 12) {
+                            Image(systemName: "bubble.left.and.bubble.right.fill")
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundColor(DesignSystem.Colors.primaryOrange)
+                            
+                            Text("Support & Feedback")
+                                .font(.system(size: 28, weight: .bold))
+                                .foregroundColor(DesignSystem.Colors.primaryOrange)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, DesignSystem.Spacing.lg)
+                        .padding(.top, DesignSystem.Spacing.lg)
+                        .padding(.bottom, DesignSystem.Spacing.sm)
                         
-                        Text("Get help or request features")
+                        Text("Help us improve by sharing your thoughts")
                             .font(.system(size: 15))
                             .foregroundColor(DesignSystem.Colors.textSecondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -51,6 +58,10 @@ struct FeedbackView: View {
                         .padding(.bottom, DesignSystem.Spacing.xxl)
                     }
                 }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                isMessageFocused = false
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -89,17 +100,25 @@ struct FeedbackView: View {
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(DesignSystem.Colors.textPrimary)
             
-            // Category Pills
-            HStack(spacing: DesignSystem.Spacing.sm) {
+            // Modern Tab Selector
+            HStack(spacing: 0) {
                 ForEach(FeedbackCategory.allCases, id: \.self) { category in
-                    CategoryPill(
+                    CategoryTab(
                         category: category,
                         isSelected: viewModel.selectedCategory == category
                     ) {
-                        viewModel.selectedCategory = category
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            viewModel.selectedCategory = category
+                        }
                     }
                 }
             }
+            .background(DesignSystem.Colors.backgroundCard)
+            .cornerRadius(DesignSystem.CornerRadius.lg)
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                    .stroke(DesignSystem.Colors.textTertiary.opacity(0.1), lineWidth: 1)
+            )
         }
     }
     
@@ -113,14 +132,21 @@ struct FeedbackView: View {
             
             ZStack(alignment: .topLeading) {
                 if viewModel.feedbackText.isEmpty {
-                    Text("Tell us what you think...")
-                        .font(.system(size: 15))
-                        .foregroundColor(DesignSystem.Colors.textPlaceholder)
-                        .padding(.top, 12)
-                        .padding(.leading, 16)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Tell us what you think...")
+                            .font(.system(size: 15))
+                            .foregroundColor(DesignSystem.Colors.textPlaceholder)
+                        
+                        Text("Be as detailed as you'd like")
+                            .font(.system(size: 13))
+                            .foregroundColor(DesignSystem.Colors.textTertiary)
+                    }
+                    .padding(.top, 12)
+                    .padding(.leading, 16)
                 }
                 
                 TextEditor(text: $viewModel.feedbackText)
+                    .focused($isMessageFocused)
                     .font(.system(size: 15))
                     .foregroundColor(DesignSystem.Colors.textPrimary)
                     .scrollContentBackground(.hidden)
@@ -129,56 +155,118 @@ struct FeedbackView: View {
             }
             .background(DesignSystem.Colors.backgroundCard)
             .cornerRadius(DesignSystem.CornerRadius.lg)
+            .overlay(
+                RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                    .stroke(
+                        viewModel.feedbackText.isEmpty 
+                            ? DesignSystem.Colors.textTertiary.opacity(0.1)
+                            : DesignSystem.Colors.primaryOrange.opacity(0.3),
+                        lineWidth: 1
+                    )
+            )
             
             // Character count
-            Text("\(viewModel.feedbackText.count) characters")
-                .font(.system(size: 13))
-                .foregroundColor(DesignSystem.Colors.textTertiary)
+            HStack {
+                Spacer()
+                Text("\(viewModel.feedbackText.count) characters")
+                    .font(.system(size: 13))
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
+            }
         }
     }
-    
-    // MARK: - Submit Button
     
     // MARK: - Submit Button
     
     private var submitButton: some View {
         Button(action: {
-            viewModel.openMailComposer()
+            Task {
+                await viewModel.submitFeedback(userEmail: nil)
+            }
         }) {
             HStack(spacing: DesignSystem.Spacing.sm) {
-                Text("Send via Email")
-                    .font(.system(size: 17, weight: .semibold))
-                
-                Image(systemName: "envelope.fill")
-                    .font(.system(size: 16))
+                if viewModel.isSubmitting {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                        .scaleEffect(0.9)
+                    
+                    Text("Sending...")
+                        .font(.system(size: 17, weight: .semibold))
+                } else {
+                    Text("Submit Feedback")
+                        .font(.system(size: 17, weight: .semibold))
+                    
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 16))
+                }
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 56)
-            .background(DesignSystem.Colors.primaryOrange)
+            .background(
+                Group {
+                    if viewModel.canSubmit {
+                        LinearGradient(
+                            colors: [
+                                DesignSystem.Colors.primaryOrange,
+                                DesignSystem.Colors.primaryOrange.opacity(0.9)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    } else {
+                        DesignSystem.Colors.textTertiary.opacity(0.3)
+                    }
+                }
+            )
             .cornerRadius(DesignSystem.CornerRadius.lg)
+            .shadow(
+                color: viewModel.canSubmit 
+                    ? DesignSystem.Colors.primaryOrange.opacity(0.3)
+                    : Color.clear,
+                radius: 8,
+                y: 4
+            )
         }
+        .disabled(!viewModel.canSubmit)
+        .scaleEffect(viewModel.canSubmit ? 1.0 : 0.98)
+        .animation(.spring(response: 0.3), value: viewModel.canSubmit)
         .padding(.top, DesignSystem.Spacing.md)
     }
 }
 
-// MARK: - Category Pill
+// MARK: - Category Tab
 
-private struct CategoryPill: View {
+private struct CategoryTab: View {
     let category: FeedbackCategory
     let isSelected: Bool
     let action: () -> Void
     
     var body: some View {
         Button(action: action) {
-            Text(category.shortTitle)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(isSelected ? .white : DesignSystem.Colors.textPrimary)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(isSelected ? DesignSystem.Colors.primaryOrange : DesignSystem.Colors.backgroundCard)
-                .cornerRadius(20)
+            VStack(spacing: 8) {
+                // Icon
+                Image(systemName: category.icon)
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundColor(isSelected ? category.color : DesignSystem.Colors.textSecondary)
+                
+                // Label
+                Text(category.shortTitle)
+                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
+                    .foregroundColor(isSelected ? DesignSystem.Colors.textPrimary : DesignSystem.Colors.textSecondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                ZStack {
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.md)
+                            .fill(category.color.opacity(0.1))
+                            .padding(4)
+                    }
+                }
+            )
         }
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
@@ -192,10 +280,37 @@ class FeedbackViewModel: ObservableObject {
     @Published var showSuccessAlert: Bool = false
     @Published var error: Error?
     
+    private let slackService = SlackService.shared
+    
     var canSubmit: Bool {
         !feedbackText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSubmitting
     }
     
+    func submitFeedback(userEmail: String? = nil) async {
+        guard canSubmit else { return }
+        
+        isSubmitting = true
+        error = nil
+        
+        do {
+            try await slackService.sendFeedback(
+                category: selectedCategory,
+                message: feedbackText,
+                userEmail: userEmail
+            )
+            
+            // Success
+            showSuccessAlert = true
+            feedbackText = ""
+            selectedCategory = .general
+        } catch {
+            self.error = error
+        }
+        
+        isSubmitting = false
+    }
+    
+    // Fallback: Open mail composer if Slack fails or for user preference
     func openMailComposer() {
         let subject = "Posterized Feedback: \(selectedCategory.shortTitle)"
         let body = """
@@ -223,7 +338,6 @@ class FeedbackViewModel: ObservableObject {
             if UIApplication.shared.canOpenURL(url) {
                 UIApplication.shared.open(url)
             } else {
-                // Fallback or error handling if no mail client
                 print("❌ Cannot open mail client")
             }
         }
