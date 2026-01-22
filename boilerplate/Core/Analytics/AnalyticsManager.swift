@@ -7,7 +7,7 @@
 //
 
 import Foundation
-import FirebaseAnalytics
+// import FirebaseAnalytics
 
 /// Protocol for analytics providers (Firebase, Mixpanel, etc.)
 protocol AnalyticsProvider {
@@ -21,7 +21,7 @@ protocol AnalyticsProvider {
 class FirebaseAnalyticsProvider: AnalyticsProvider {
     func logEvent(_ event: String, parameters: [String: Any]?) {
         // Log to Firebase
-        Analytics.logEvent(event, parameters: parameters)
+        // Analytics.logEvent(event, parameters: parameters)
         
         // Also log to console in DEBUG for visibility
         #if DEBUG
@@ -34,7 +34,7 @@ class FirebaseAnalyticsProvider: AnalyticsProvider {
     }
     
     func setUserProperty(_ value: String, forName name: String) {
-        Analytics.setUserProperty(value, forName: name)
+        // Analytics.setUserProperty(value, forName: name)
         
         #if DEBUG
         print("📊 Firebase User Property: \(name) = \(value)")
@@ -42,7 +42,7 @@ class FirebaseAnalyticsProvider: AnalyticsProvider {
     }
     
     func setUserId(_ userId: String?) {
-        Analytics.setUserID(userId)
+        // Analytics.setUserID(userId)
         
         #if DEBUG
         print("📊 Firebase User ID: \(userId ?? "nil")")
