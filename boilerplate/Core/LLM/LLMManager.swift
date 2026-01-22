@@ -52,7 +52,8 @@ class LLMManager: ObservableObject {
     /// Send a prompt and get a complete response
     func sendPrompt(
         _ prompt: String,
-        context: [LLMMessage] = []
+        context: [LLMMessage] = [],
+        attachments: [MediaAttachment] = []
     ) async throws -> LLMResponse {
         guard let service = llmService else {
             throw LLMError.serviceNotConfigured
@@ -66,13 +67,34 @@ class LLMManager: ObservableObject {
         }
         
         do {
+            // Check if the last message in context is already the user message matching this prompt
+            // If so, rely on context. If not, create new message.
+            // This is a simple heuristic. Ideally, usage should be consistent.
+            
+            var requestMessages = context
+            
+            // If the prompt is not empty and the last message isn't this user message, append it.
+            // (Assuming PromptViewModel appends it to context before calling)
+            
+            // Actually, to match PromptViewModel logic which passes full history + attachments explicitly:
+            // logic: If attachments are provided, they are associated with the "prompt" (new user message).
+            
             let userMessage = LLMMessage(
                 role: .user,
-                content: prompt
+                content: prompt,
+                attachments: attachments
             )
             
+            // If context already contains the user message at the end, don't duplicate.
+            if let last = context.last, last.role == .user && last.content == prompt && last.attachments.count == attachments.count {
+                // Already in context
+                requestMessages = context
+            } else {
+                requestMessages = context + [userMessage]
+            }
+            
             let request = LLMRequest(
-                messages: context + [userMessage],
+                messages: requestMessages,
                 temperature: 0.7,
                 maxTokens: 2000
             )
@@ -92,6 +114,7 @@ class LLMManager: ObservableObject {
     func streamPrompt(
         _ prompt: String,
         context: [LLMMessage] = [],
+        attachments: [MediaAttachment] = [],
         onChunk: @escaping (String) -> Void,
         onComplete: @escaping (LLMResponse) -> Void
     ) async throws {
@@ -108,8 +131,22 @@ class LLMManager: ObservableObject {
         }
         
         do {
+            let userMessage = LLMMessage(
+                role: .user,
+                content: prompt,
+                attachments: attachments
+            )
+            
+             // Same duplication check as sendPrompt
+            var requestMessages = context
+            if let last = context.last, last.role == .user && last.content == prompt && last.attachments.count == attachments.count {
+                requestMessages = context
+            } else {
+                requestMessages = context + [userMessage]
+            }
+
             let request = LLMRequest(
-                messages: context + [LLMMessage(role: .user, content: prompt)],
+                messages: requestMessages,
                 temperature: 0.7,
                 maxTokens: 2000,
                 stream: true
@@ -176,7 +213,7 @@ struct LLMMessage: Codable, Identifiable {
     let role: MessageRole
     let content: String
     let timestamp: Date
-    let attachments: [LLMAttachment]
+    let attachments: [MediaAttachment]
     
     var hasImages: Bool {
         attachments.contains { $0.type == .image }
@@ -186,7 +223,7 @@ struct LLMMessage: Codable, Identifiable {
         id: String = UUID().uuidString,
         role: MessageRole,
         content: String,
-        attachments: [LLMAttachment] = [],
+        attachments: [MediaAttachment] = [],
         timestamp: Date = Date()
     ) {
         self.id = id
@@ -195,35 +232,6 @@ struct LLMMessage: Codable, Identifiable {
         self.attachments = attachments
         self.timestamp = timestamp
     }
-}
-
-struct LLMAttachment: Codable, Identifiable {
-    let id: String
-    let type: AttachmentType
-    let url: URL?
-    let base64Data: String?
-    let mimeType: String
-    
-    init(
-        id: String = UUID().uuidString,
-        type: AttachmentType,
-        url: URL? = nil,
-        base64Data: String? = nil,
-        mimeType: String
-    ) {
-        self.id = id
-        self.type = type
-        self.url = url
-        self.base64Data = base64Data
-        self.mimeType = mimeType
-    }
-}
-
-enum AttachmentType: String, Codable {
-    case image
-    case audio
-    case video
-    case file
 }
 
 enum MessageRole: String, Codable {
