@@ -2,7 +2,7 @@
 //  HistoryView.swift
 //  boilerplate
 //
-//  RoastGPT Clone - History of roast sessions
+//  Posterized - History of roast sessions matching Figma designs
 //  Created by Ankur on 1/12/26.
 //
 
@@ -11,19 +11,27 @@ import SwiftUI
 struct HistoryView: View {
     @StateObject private var viewModel = HistoryViewModel()
     @EnvironmentObject private var authManager: AuthManager
+    @State private var searchText = ""
     
     var body: some View {
         NavigationStack {
-            Group {
-                if viewModel.isLoading {
-                    loadingView
-                } else if viewModel.sessions.isEmpty {
-                    emptyState
-                } else {
-                    sessionsList
+            ZStack {
+                // Background
+                DesignSystem.Colors.backgroundPrimary
+                    .ignoresSafeArea()
+                
+                Group {
+                    if viewModel.isLoading {
+                        loadingView
+                    } else if filteredSessions.isEmpty {
+                        emptyState
+                    } else {
+                        sessionsList
+                    }
                 }
             }
             .navigationTitle("History")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
@@ -34,9 +42,11 @@ struct HistoryView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
                     }
                 }
             }
+            .searchable(text: $searchText, prompt: "Search posterizes...")
             .refreshable {
                 await viewModel.loadSessions(userId: authManager.currentUser?.id ?? "anonymous")
             }
@@ -46,36 +56,57 @@ struct HistoryView: View {
         }
     }
     
+    // MARK: - Filtered Sessions
+    
+    private var filteredSessions: [RoastSession] {
+        if searchText.isEmpty {
+            return viewModel.sessions
+        } else {
+            return viewModel.sessions.filter { session in
+                session.inputText.localizedCaseInsensitiveContains(searchText) ||
+                session.roastText.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+    
     // MARK: - Loading View
     
     private var loadingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: DesignSystem.Spacing.md) {
             ProgressView()
-                .scaleEffect(1.5)
+                .scaleEffect(1.2)
+                .tint(DesignSystem.Colors.primaryOrange)
             
             Text("Loading history...")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+                .font(DesignSystem.Typography.subheadline)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
         }
     }
     
     // MARK: - Empty State
     
     private var emptyState: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "flame.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.gray)
+        VStack(spacing: DesignSystem.Spacing.xl) {
+            ZStack {
+                Circle()
+                    .fill(DesignSystem.Colors.primaryOrange.opacity(0.15))
+                    .frame(width: 100, height: 100)
+                
+                Image(systemName: "clock.fill")
+                    .font(.system(size: 50))
+                    .foregroundColor(DesignSystem.Colors.primaryOrange)
+            }
             
-            Text("No Roasts Yet")
-                .font(.title2)
-                .fontWeight(.semibold)
+            Text(searchText.isEmpty ? "No Posterizes Yet" : "No Results")
+                .font(DesignSystem.Typography.title2)
+                .fontWeight(.bold)
+                .foregroundColor(DesignSystem.Colors.textPrimary)
             
-            Text("Generate your first roast to see it here")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
+            Text(searchText.isEmpty ? "Drop your first take to see it here" : "Try a different search term")
+                .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal)
+                .padding(.horizontal, DesignSystem.Spacing.xxxl)
         }
         .padding()
     }
@@ -83,76 +114,147 @@ struct HistoryView: View {
     // MARK: - Sessions List
     
     private var sessionsList: some View {
-        List {
-            ForEach(viewModel.groupedSessions.keys.sorted(by: >), id: \.self) { date in
-                Section(header: Text(date)) {
-                    ForEach(viewModel.groupedSessions[date] ?? []) { session in
-                        NavigationLink(destination: RoastDetailView(session: session)) {
-                            RoastSessionRow(session: session)
-                        }
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                viewModel.deleteSession(session)
-                            } label: {
-                                Label("Delete", systemImage: "trash")
+        ScrollView {
+            LazyVStack(spacing: DesignSystem.Spacing.md) {
+                ForEach(groupedSessions.keys.sorted(by: >), id: \.self) { dateKey in
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+                        // Section Header
+                        Text(dateKey)
+                            .font(DesignSystem.Typography.caption1)
+                            .fontWeight(.semibold)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                            .padding(.horizontal, DesignSystem.Spacing.lg)
+                            .padding(.top, DesignSystem.Spacing.sm)
+                        
+                        // Sessions for this date
+                        ForEach(groupedSessions[dateKey] ?? []) { session in
+                            NavigationLink(destination: roastedView(for: session)) {
+                                RoastSessionCard(session: session)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu {
+                                Button(role: .destructive) {
+                                    viewModel.deleteSession(session)
+                                } label: {
+                                    Label("Delete", systemImage: "trash")
+                                }
                             }
                         }
                     }
                 }
             }
+            .padding(DesignSystem.Spacing.lg)
+        }
+    }
+    
+    private var groupedSessions: [String: [RoastSession]] {
+        Dictionary(grouping: filteredSessions) { session in
+            relativeDateString(for: session.timestamp)
+        }
+    }
+    
+    private func relativeDateString(for date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        if calendar.isDateInToday(date) {
+            return "Today"
+        } else if calendar.isDateInYesterday(date) {
+            return "Yesterday"
+        } else if calendar.isDate(date, equalTo: now, toGranularity: .weekOfYear) {
+            return "This Week"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMMM d, yyyy"
+            return formatter.string(from: date)
+        }
+    }
+    
+    @ViewBuilder
+    private func roastedView(for session: RoastSession) -> some View {
+        if session.source == .image {
+            ImageRoastView(session: session)
+        } else {
+            HomeView(session: session)
         }
     }
 }
 
-// MARK: - Roast Session Row
+// MARK: - Roast Session Card
 
-private struct RoastSessionRow: View {
+private struct RoastSessionCard: View {
     let session: RoastSession
     
     var body: some View {
-        HStack(spacing: 12) {
-            // Icon or Image Thumbnail
-            if session.hasImage {
-                // TODO: Load actual image thumbnail
-                Image(systemName: "photo")
-                    .font(.title2)
-                    .foregroundColor(.blue)
-                    .frame(width: 50, height: 50)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(8)
-            } else {
-                Image(systemName: "text.quote")
-                    .font(.title2)
-                    .foregroundColor(.orange)
-                    .frame(width: 50, height: 50)
-                    .background(Color.orange.opacity(0.1))
-                    .cornerRadius(8)
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
+            // Header with timestamp
+            HStack {
+                Image(systemName: session.source == .image ? "photo" : "text.quote")
+                    .font(.system(size: DesignSystem.IconSize.sm))
+                    .foregroundColor(DesignSystem.Colors.primaryOrange)
+                
+                Text(session.source == .image ? "From Image" : "From Text")
+                    .font(DesignSystem.Typography.caption1)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                
+                Spacer()
+                
+                Text(session.timestamp.formatted(date: .omitted, time: .shortened))
+                    .font(DesignSystem.Typography.caption1)
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
             }
             
-            VStack(alignment: .leading, spacing: 6) {
-                // Input Preview
-                Text(session.inputText.prefix(50) + (session.inputText.count > 50 ? "..." : ""))
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                    .lineLimit(1)
+            // Input preview
+            Text(session.inputText)
+                .font(DesignSystem.Typography.subheadline)
+                .foregroundColor(DesignSystem.Colors.textPrimary)
+                .lineLimit(2)
+            
+            // Roast preview (Deeper than text input)
+            Text(session.roastText)
+                .font(DesignSystem.Typography.footnote)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+                .lineLimit(2)
+            
+            // Source & Intensity Tags
+            HStack(spacing: DesignSystem.Spacing.xs) {
+                // Source Tag
+                Text(session.source == .image ? "IMAGE" : "TEXT")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color(hex: "4A4A4A"))
+                    .cornerRadius(2)
                 
-                // Roast Preview
-                Text(session.preview + (session.roastText.count > 100 ? "..." : ""))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(2)
+                // Intensity Tag
+                Text(session.intensity.rawValue)
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundColor(session.intensity.contentColor)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(session.intensity.color)
+                    .cornerRadius(2)
                 
-                // Timestamp
-                HStack(spacing: 4) {
-                    Image(systemName: "clock")
-                        .font(.caption2)
-                    Text(session.timestamp.formatted(.relative(presentation: .named)))
-                        .font(.caption2)
-                }
-                .foregroundColor(.secondary)
+                // Sport Tag
+                Image(systemName: session.sport.icon)
+                    .font(.system(size: 8))
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
+                    .padding(3)
+                    .background(DesignSystem.Colors.backgroundTertiary)
+                    .clipShape(Circle())
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: DesignSystem.IconSize.xs))
+                    .foregroundColor(DesignSystem.Colors.textTertiary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(DesignSystem.Spacing.md)
+        .background(DesignSystem.Colors.backgroundCard)
+        .cornerRadius(DesignSystem.CornerRadius.md)
+        .designSystemShadow(DesignSystem.Shadow.card)
     }
 }
 
@@ -163,111 +265,72 @@ struct RoastDetailView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                // Original Input
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("Original Text")
-                        .font(.headline)
-                    
-                    Text(session.inputText)
-                        .font(.body)
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color(.secondarySystemBackground))
-                        .cornerRadius(12)
-                }
-                
-                // OCR Text (if available)
-                if let ocrText = session.ocrText {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Extracted from Image")
-                            .font(.headline)
+        ZStack {
+            DesignSystem.Colors.backgroundPrimary
+                .ignoresSafeArea()
+            
+            ScrollView {
+                VStack(spacing: DesignSystem.Spacing.xl) {
+                    // Metadata
+                    VStack(spacing: DesignSystem.Spacing.xs) {
+                        Image(systemName: session.source == .image ? "photo.fill" : "text.quote")
+                            .font(.system(size: DesignSystem.IconSize.xl))
+                            .foregroundColor(DesignSystem.Colors.primaryOrange)
                         
-                        Text(ocrText)
-                            .font(.caption)
-                            .padding()
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Color(.tertiarySystemBackground))
-                            .cornerRadius(12)
-                    }
-                }
-                
-                // Roast
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Text("🔥 The Roast")
-                            .font(.headline)
-                        
-                        Spacer()
-                        
-                        // Source indicator
-                        Label(
-                            session.source == .image ? "📷 Image" : "✏️ Text",
-                            systemImage: ""
-                        )
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    }
-                    
-                    Text(session.roastText)
-                        .font(.body)
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.orange.opacity(0.1))
-                        .cornerRadius(12)
-                }
-                
-                // Actions
-                HStack(spacing: 16) {
-                    Button(action: {
-                        UIPasteboard.general.string = session.roastText
-                    }) {
-                        Label("Copy", systemImage: "doc.on.doc")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                    
-                    Button(action: {
-                        shareRoast(session.roastText)
-                    }) {
-                        Label("Share", systemImage: "square.and.arrow.up")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.bordered)
-                }
-                
-                // Metadata
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Details")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    
-                    HStack {
-                        Text("Created:")
-                        Spacer()
                         Text(session.timestamp.formatted(date: .long, time: .shortened))
+                            .font(DesignSystem.Typography.caption1)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                        
+                        // Intensity Tag
+                        Text(session.intensity.rawValue)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(session.intensity.contentColor)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(session.intensity.color)
+                            .cornerRadius(4)
+                            .padding(.top, 4)
                     }
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .padding(.top, DesignSystem.Spacing.lg)
                     
-                    if session.hasImage {
+                    // Input
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
                         HStack {
-                            Text("Source:")
-                            Spacer()
-                            Text("Image Upload")
+                            Image(systemName: "quote.opening")
+                                .font(.system(size: DesignSystem.IconSize.sm))
+                                .foregroundColor(DesignSystem.Colors.textSecondary)
+                            
+                            Text("Original Text")
+                                .font(DesignSystem.Typography.headline)
+                                .foregroundColor(DesignSystem.Colors.textPrimary)
                         }
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        
+                        Text(session.inputText)
+                            .font(DesignSystem.Typography.body)
+                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                            .padding(DesignSystem.Spacing.md)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(DesignSystem.Colors.backgroundCard)
+                            .cornerRadius(DesignSystem.CornerRadius.md)
                     }
+                    
+                    // Roast Output
+                    RoastCard(
+                        title: "The Posterize",
+                        text: session.roastText,
+                        isStreaming: false,
+                        onCopy: {
+                            UIPasteboard.general.string = session.roastText
+                        },
+                        onShare: {
+                            shareRoast(session.roastText)
+                        }
+                    )
                 }
-                .padding()
-                .background(Color(.tertiarySystemBackground))
-                .cornerRadius(12)
+                .padding(DesignSystem.Spacing.lg)
             }
-            .padding()
         }
-        .navigationTitle("Roast Details")
+            .navigationTitle("Posterize Details")
         .navigationBarTitleDisplayMode(.inline)
     }
     
@@ -293,7 +356,20 @@ struct RoastDetailView: View {
     }
 }
 
-#Preview {
+#Preview("History - Empty") {
     HistoryView()
         .environmentObject(AuthManager())
+}
+
+#Preview("Detail") {
+    NavigationStack {
+        RoastDetailView(
+            session: RoastSession(
+                userId: "test",
+                inputText: "I'm the best developer in the world",
+                roastText: "Oh really? The 'best developer' still uses print statements for debugging and thinks CSS stands for 'Can't Style Stuff'.",
+                source: .text
+            )
+        )
+    }
 }
