@@ -50,8 +50,8 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         ]
         
         if let imageData = inputImage {
-            // Resize to avoid "Message too long" errors (max 1024px, 0.7 quality)
-            let resizedData = resizeImage(data: imageData, maxDimension: 1024) ?? imageData
+            // Resize to avoid "Message too long" errors (max 512px, 0.6 quality)
+            let resizedData = resizeImage(data: imageData, maxDimension: 512) ?? imageData
             let base64Image = resizedData.base64EncodedString()
             
             parts.append([
@@ -204,6 +204,6 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
         
-        return resizedImage.jpegData(compressionQuality: 0.7)
+        return resizedImage.jpegData(compressionQuality: 0.6)
     }
 }
