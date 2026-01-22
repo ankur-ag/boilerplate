@@ -35,17 +35,16 @@ extension View {
             }
         }
     }
-    }
 }
 
 // MARK: - Environment Values
 
 struct LLMManagerKey: EnvironmentKey {
-    static let defaultValue: LLMManager = LLMManager()
+    @MainActor static let defaultValue: LLMManager = LLMManager()
 }
 
 struct ImageGenerationManagerKey: EnvironmentKey {
-    static let defaultValue: ImageGenerationManager = ImageGenerationManager()
+    @MainActor static let defaultValue: ImageGenerationManager = ImageGenerationManager()
 }
 
 struct UsageManagerKey: EnvironmentKey {
