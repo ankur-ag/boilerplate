@@ -2,7 +2,7 @@
 //  FirebaseService.swift
 //  boilerplate
 //
-//  RoastGPT Clone - Firebase integration layer
+//  Posterized - Firebase integration layer
 //  Created by Ankur on 1/12/26.
 //
 
@@ -10,7 +10,7 @@ import Foundation
 import FirebaseFirestore
 import FirebaseStorage
 
-/// Firebase service layer for RoastGPT
+/// Firebase service layer for Posterized
 /// Handles Firestore database operations and Storage
 class FirebaseService {
     static let shared = FirebaseService()
@@ -35,10 +35,14 @@ class FirebaseService {
             "userId": session.userId,
             "inputText": session.inputText,
             "roastText": session.roastText,
+            "secondaryRoastText": session.secondaryRoastText as Any,
             "imageURL": session.imageURL as Any,
+            "secondaryImageURL": session.secondaryImageURL as Any,
             "ocrText": session.ocrText as Any,
             "timestamp": Timestamp(date: session.timestamp),
-            "source": session.source.rawValue
+            "source": session.source.rawValue,
+            "intensity": session.intensity.rawValue,
+            "sport": session.sport.rawValue
         ]
         
         do {
@@ -67,22 +71,32 @@ class FirebaseService {
                       let inputText = data["inputText"] as? String,
                       let roastText = data["roastText"] as? String,
                       let timestamp = (data["timestamp"] as? Timestamp)?.dateValue(),
-                      let sourceRaw = data["source"] as? String,
-                      let source = RoastInputSource(rawValue: sourceRaw) else {
-                    print("⚠️ [Firebase] Failed to parse session: \(doc.documentID)")
-                    return nil
-                }
-                
-                return RoastSession(
-                    id: id,
-                    userId: userId,
-                    inputText: inputText,
-                    roastText: roastText,
-                    timestamp: timestamp,
-                    imageURL: data["imageURL"] as? String,
-                    ocrText: data["ocrText"] as? String,
-                    source: source
-                )
+                    let sourceRaw = data["source"] as? String,
+                    let source = RoastInputSource(rawValue: sourceRaw) else {
+                  print("⚠️ [Firebase] Failed to parse session: \(doc.documentID)")
+                  return nil
+              }
+              
+              let intensityRaw = data["intensity"] as? String ?? RoastIntensity.posterized.rawValue
+              let intensity = RoastIntensity(rawValue: intensityRaw) ?? .posterized
+              
+              let sportRaw = data["sport"] as? String ?? SportType.nba.rawValue
+              let sport = SportType(rawValue: sportRaw) ?? .nba
+              
+              return RoastSession(
+                  id: id,
+                  userId: userId,
+                  inputText: inputText,
+                  roastText: roastText,
+                  secondaryRoastText: data["secondaryRoastText"] as? String,
+                  timestamp: timestamp,
+                  imageURL: data["imageURL"] as? String,
+                  secondaryImageURL: data["secondaryImageURL"] as? String,
+                  ocrText: data["ocrText"] as? String,
+                  source: source,
+                  intensity: intensity,
+                  sport: sport
+              )
             }
             
             print("✅ [Firebase] Loaded \(sessions.count) sessions")
@@ -105,6 +119,63 @@ class FirebaseService {
             throw FirebaseServiceError.deleteFailed(error.localizedDescription)
         }
     }
+    
+    /// Update a session's image URLs
+    func updateSessionImages(sessionId: String, imageURL: String? = nil, secondaryImageURL: String? = nil) async throws {
+        var updateData: [String: Any] = [:]
+        if let imageURL = imageURL { updateData["imageURL"] = imageURL }
+        if let secondaryImageURL = secondaryImageURL { updateData["secondaryImageURL"] = secondaryImageURL }
+        
+        guard !updateData.isEmpty else { return }
+        
+        do {
+            try await db.collection("sessions").document(sessionId).updateData(updateData)
+            print("✅ [Firebase] Session \(sessionId) image URLs updated")
+        } catch {
+            print("❌ [Firebase] Update failed: \(error.localizedDescription)")
+            throw FirebaseServiceError.saveFailed(error.localizedDescription)
+        }
+    }
+    
+    /// Save user sports preferences
+    /// Path: users/{userId}
+    func saveUserPreferences(_ preferences: UserSportsPreferences, userId: String) async throws {
+        do {
+            let data = try JSONEncoder().encode(preferences)
+            guard let dictionary = try JSONSerialization.jsonObject(with: data, options: []) as? [String: Any] else {
+                throw FirebaseServiceError.saveFailed("Failed to serialize preferences")
+            }
+            
+            try await db.collection("users").document(userId).setData([
+                "preferences": dictionary,
+                "updatedAt": Timestamp(date: Date())
+            ], merge: true)
+            
+            print("✅ [Firebase] User preferences saved for: \(userId)")
+        } catch {
+            print("❌ [Firebase] Save preferences failed: \(error.localizedDescription)")
+            throw FirebaseServiceError.saveFailed(error.localizedDescription)
+        }
+    }
+    
+    /// Load user sports preferences
+    func loadUserPreferences(userId: String) async throws -> UserSportsPreferences? {
+        do {
+            let doc = try await db.collection("users").document(userId).getDocument()
+            guard let data = doc.data(),
+                  let prefDict = data["preferences"] as? [String: Any] else {
+                return nil
+            }
+            
+            let jsonData = try JSONSerialization.data(withJSONObject: prefDict, options: [])
+            return try JSONDecoder().decode(UserSportsPreferences.self, from: jsonData)
+        } catch {
+            print("❌ [Firebase] Load preferences failed: \(error.localizedDescription)")
+            throw FirebaseServiceError.loadFailed(error.localizedDescription)
+        }
+    }
+
+
     
     // MARK: - Usage Tracking
     

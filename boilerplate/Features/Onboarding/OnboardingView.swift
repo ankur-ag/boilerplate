@@ -2,80 +2,788 @@
 //  OnboardingView.swift
 //  boilerplate
 //
+//  Posterized - Welcome screen with Apple Sign In
 //  Created by Ankur on 1/12/26.
 //
 
 import SwiftUI
+import AuthenticationServices
 
 struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
+    @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var appConfigManager: AppConfigManager
+    @Environment(\.analyticsManager) private var analyticsManager
     
     var body: some View {
-        TabView(selection: $viewModel.currentPage) {
-            ForEach(viewModel.pages.indices, id: \.self) { index in
-                OnboardingPageView(page: viewModel.pages[index])
-                    .tag(index)
-            }
-        }
-        .tabViewStyle(.page(indexDisplayMode: .always))
-        .indexViewStyle(.page(backgroundDisplayMode: .always))
-        .overlay(alignment: .bottom) {
-            bottomButtons
-                .padding()
-        }
-    }
-    
-    private var bottomButtons: some View {
-        HStack {
-            if viewModel.currentPage > 0 {
-                Button("Back") {
-                    viewModel.previousPage()
+        NavigationStack {
+            ZStack {
+                // Background - Pure black
+                Color.black
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    Spacer()
+                    
+                    // Official Logo (includes app name)
+                    Group {
+                        if UIImage(named: "AppLogo") != nil {
+                            Image("AppLogo")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } else {
+                            // Fallback to SF Symbol if logo not added yet
+                            Image(systemName: "basketball.fill")
+                                .font(.system(size: 120))
+                                .foregroundColor(DesignSystem.Colors.primaryOrange)
+                        }
+                    }
+                    .frame(width: 630)
+                    .padding(.bottom, DesignSystem.Spacing.xxxl)
+                    
+                    Spacer()
+                    
+                    // Main Headline
+                    Text("One tap roasts for all your\nBasketball convos")
+                        .font(.system(size: 28, weight: .semibold))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .lineSpacing(4)
+                        .padding(.horizontal, DesignSystem.Spacing.xl)
+                        .padding(.bottom, DesignSystem.Spacing.md)
+                    
+                    // Subheadline
+                    Text("Savage roasts. Group chats. No shame.")
+                        .font(.system(size: 16))
+                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.bottom, DesignSystem.Spacing.xxxl)
+                    
+                    Spacer()
+                    
+                    // Terms Agreement
+                    HStack(alignment: .top, spacing: 8) {
+                        Image(systemName: viewModel.agreedToTerms ? "checkmark.square.fill" : "square")
+                            .font(.system(size: 20))
+                            .foregroundColor(viewModel.agreedToTerms ? DesignSystem.Colors.accentCyan : DesignSystem.Colors.textSecondary)
+                            .onTapGesture {
+                                viewModel.agreedToTerms.toggle()
+                            }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 4) {
+                                Text("I agree to the")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                
+                                Button("Terms & Conditions") {
+                                    viewModel.showTerms = true
+                                }
+                                .font(.system(size: 12))
+                                .foregroundColor(DesignSystem.Colors.accentCyan)
+                                
+                                Text("and")
+                                    .font(.system(size: 12))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                            }
+                            
+                            Button("Privacy Policy") {
+                                viewModel.showPrivacy = true
+                            }
+                            .font(.system(size: 12))
+                            .foregroundColor(DesignSystem.Colors.accentCyan)
+                            
+                            Text("All roasts are generated by AI for entertainment purposes.")
+                                .font(.system(size: 11))
+                                .foregroundColor(DesignSystem.Colors.textTertiary)
+                                .padding(.top, 4)
+                        }
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .padding(.bottom, DesignSystem.Spacing.xl)
+                    
+                    // Continue with Apple Button
+                    #if DEBUG
+                    // BYPASS: Simple continue button for development
+                    Button(action: {
+                        Task {
+                            await viewModel.signInAndContinue(authManager: authManager)
+                        }
+                    }) {
+                        HStack(spacing: 12) {
+                            if viewModel.isLoading {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "arrow.right.circle.fill")
+                                    .font(.system(size: 24))
+                                Text("Continue")
+                                    .font(.system(size: 18, weight: .semibold))
+                            }
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(DesignSystem.Colors.primaryOrange)
+                        .cornerRadius(DesignSystem.CornerRadius.lg)
+                    }
+                    .disabled(!viewModel.agreedToTerms || viewModel.isLoading)
+                    .opacity(viewModel.agreedToTerms ? 1.0 : 0.5)
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .padding(.bottom, DesignSystem.Spacing.md)
+                    
+                    Text("DEBUG: Apple Sign In bypassed")
+                        .font(.system(size: 11))
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                        .padding(.bottom, DesignSystem.Spacing.xxl)
+                    #else
+                    // PRODUCTION: Real Apple Sign In
+                    SignInWithAppleButton(
+                        .signIn,
+                        onRequest: { request in
+                            viewModel.configureAppleSignIn(request)
+                        },
+                        onCompletion: { result in
+                            Task {
+                                await viewModel.handleAppleSignIn(result, authManager: authManager)
+                            }
+                        }
+                    )
+                    .signInWithAppleButtonStyle(.white)
+                    .frame(height: 56)
+                    .cornerRadius(DesignSystem.CornerRadius.lg)
+                    .disabled(!viewModel.agreedToTerms || viewModel.isLoading)
+                    .opacity(viewModel.agreedToTerms ? 1.0 : 0.5)
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .overlay(
+                        Group {
+                            if !viewModel.agreedToTerms || viewModel.isLoading {
+                                Color.black.opacity(0.5)
+                                    .cornerRadius(DesignSystem.CornerRadius.lg)
+                                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                    )
+                    .padding(.bottom, DesignSystem.Spacing.xxl)
+                    #endif
+                    
+                    // Page Indicator
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(DesignSystem.Colors.primaryOrange)
+                            .frame(width: 8, height: 8)
+                        Circle()
+                            .fill(DesignSystem.Colors.textSecondary.opacity(0.3))
+                            .frame(width: 8, height: 8)
+                    }
+                    .padding(.bottom, 40)
                 }
-                .buttonStyle(.bordered)
             }
-            
-            Spacer()
-            
-            Button(viewModel.isLastPage ? "Get Started" : "Next") {
-                if viewModel.isLastPage {
-                    viewModel.completeOnboarding(appConfigManager)
-                } else {
-                    viewModel.nextPage()
+            .alert("Error", isPresented: .constant(viewModel.error != nil)) {
+                Button("OK") {
+                    viewModel.error = nil
+                }
+            } message: {
+                if let error = viewModel.error {
+                    Text(error.localizedDescription)
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .navigationDestination(isPresented: $viewModel.showTailor) {
+                TailorView()
+            }
+            .sheet(isPresented: $viewModel.showTerms) {
+                TermsView()
+                    .trackScreenView("Terms")
+                    .onAppear {
+                        analyticsManager.logEvent(.termsViewed)
+                    }
+            }
+            .sheet(isPresented: $viewModel.showPrivacy) {
+                PrivacyView()
+                    .trackScreenView("Privacy")
+                    .onAppear {
+                        analyticsManager.logEvent(.privacyViewed)
+                    }
+            }
+            .trackScreenView("Onboarding")
+            .onAppear {
+                analyticsManager.logEvent(.onboardingStarted)
+            }
+            .onChange(of: viewModel.agreedToTerms) { _, agreed in
+                if agreed {
+                    analyticsManager.logEvent(.termsAgreed)
+                }
+            }
         }
     }
 }
 
-// MARK: - Onboarding Page View
+// MARK: - Tailor Preferences View (Team Selection)
 
-private struct OnboardingPageView: View {
-    let page: OnboardingPage
+struct TailorView: View {
+    @StateObject private var viewModel = TailorViewModel()
+    @EnvironmentObject private var authManager: AuthManager
+    @EnvironmentObject private var appConfigManager: AppConfigManager
+    @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        VStack(spacing: 30) {
-            Spacer()
+        ZStack {
+            // Background
+            DesignSystem.Colors.backgroundPrimary
+                .ignoresSafeArea()
             
-            Image(systemName: page.imageName)
-                .font(.system(size: 100))
-                .foregroundColor(.accentColor)
-            
-            Text(page.title)
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .multilineTextAlignment(.center)
-            
-            Text(page.description)
-                .font(.body)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-            
-            Spacer()
-            Spacer()
+            VStack(spacing: 0) {
+                // Header with Close Button
+                HStack {
+                    Spacer()
+                    Text("Tailor Profile")
+                        .font(DesignSystem.Typography.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(DesignSystem.Colors.primaryOrange)
+                    Spacer()
+                }
+                .overlay(alignment: .trailing) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                    }
+                    .padding(.trailing, DesignSystem.Spacing.lg)
+                }
+                .padding(.top, DesignSystem.Spacing.lg)
+                .padding(.bottom, DesignSystem.Spacing.xl)
+                
+                // Content
+                ScrollView {
+                    VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxl) {
+                        // Sport Selection
+                        sportSelectionSection
+                        
+                        // My Team Selection
+                        myTeamSection
+                        
+                        // Rival Teams Selection
+                        rivalTeamsSection
+                        
+                        // Intensity Selection
+                        intensitySection
+                    }
+                    .padding(.horizontal, DesignSystem.Spacing.lg)
+                    .padding(.bottom, DesignSystem.Spacing.xl)
+                }
+                
+                // Start Roasting Button
+                Button(action: {
+                    Task {
+                        await viewModel.savePreferences(userId: authManager.currentUser?.id)
+                        appConfigManager.completeOnboarding()
+                        dismiss()
+                    }
+                }) {
+                    Text("START ROASTING")
+                        .font(DesignSystem.Typography.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(
+                            LinearGradient(
+                                colors: [Color(hex: "FF4500"), Color(hex: "FF6B35")],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .cornerRadius(DesignSystem.CornerRadius.md)
+                }
+                .disabled(!viewModel.canContinue)
+                .opacity(viewModel.canContinue ? 1.0 : 0.5)
+                .padding(DesignSystem.Spacing.lg)
+            }
         }
-        .padding()
+        .navigationBarBackButtonHidden(true)
+        .onAppear {
+            if let userId = authManager.currentUser?.id {
+                Task {
+                    await viewModel.loadPreferences(userId: userId)
+                }
+            }
+        }
+    }
+    
+    // MARK: - Sport Selection Section
+    
+    private var sportSelectionSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Text("Choose your sport")
+                .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+            
+            HStack(spacing: DesignSystem.Spacing.md) {
+                ForEach(SportType.allCases, id: \.self) { sport in
+                    Button(action: {
+                        withAnimation {
+                            viewModel.selectSport(sport)
+                        }
+                    }) {
+                        VStack(spacing: DesignSystem.Spacing.xs) {
+                            Image(systemName: sport.icon)
+                                .font(.system(size: 24))
+                            Text(sport.rawValue)
+                                .font(DesignSystem.Typography.caption1)
+                                .fontWeight(.bold)
+                        }
+                        .foregroundColor(viewModel.selectedSport == sport ? .black : DesignSystem.Colors.textSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, DesignSystem.Spacing.md)
+                        .background(viewModel.selectedSport == sport ? DesignSystem.Colors.accentCyan : DesignSystem.Colors.backgroundCard)
+                        .cornerRadius(DesignSystem.CornerRadius.lg)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignSystem.CornerRadius.lg)
+                                .stroke(viewModel.selectedSport == sport ? DesignSystem.Colors.accentCyan : Color.clear, lineWidth: 2)
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - My Team Section
+    
+    private var myTeamSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Text("Which team are you riding with?")
+                .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+            
+            // Search Bar
+            Button(action: {
+                viewModel.showTeamPicker = true
+            }) {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    Text("Search for your team...")
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textPlaceholder)
+                    Spacer()
+                }
+                .padding(DesignSystem.Spacing.md)
+                .background(DesignSystem.Colors.backgroundCard)
+                .cornerRadius(DesignSystem.CornerRadius.lg)
+            }
+            
+            // Recent/Suggested Teams (if no selection)
+            if viewModel.myTeam == nil {
+                VStack(spacing: DesignSystem.Spacing.xs) {
+                    ForEach(viewModel.suggestedTeams.prefix(3)) { team in
+                        TeamSuggestionRow(team: team) {
+                            viewModel.myTeam = team
+                        }
+                    }
+                }
+            }
+            
+            // Selected Team Pill
+            if let selectedTeam = viewModel.myTeam {
+                SelectedTeamPill(team: selectedTeam) {
+                    viewModel.myTeam = nil
+                }
+            }
+        }
+        .sheet(isPresented: $viewModel.showTeamPicker) {
+            TeamPickerView(selectedTeam: $viewModel.myTeam, sport: viewModel.selectedSport)
+        }
+    }
+    
+    // MARK: - Rival Teams Section
+    
+    private var rivalTeamsSection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            HStack {
+                Text("Which teams do you love clowning?")
+                    .font(DesignSystem.Typography.body)
+                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                Spacer()
+                Text("MAX 3")
+                    .font(DesignSystem.Typography.caption1)
+                    .fontWeight(.bold)
+                    .foregroundColor(DesignSystem.Colors.accentYellow)
+                    .padding(.horizontal, DesignSystem.Spacing.sm)
+                    .padding(.vertical, DesignSystem.Spacing.xxs)
+                    .background(DesignSystem.Colors.accentYellow.opacity(0.2))
+                    .cornerRadius(DesignSystem.CornerRadius.sm)
+            }
+            
+            // Search Bar
+            Button(action: {
+                if viewModel.rivalTeams.count < 3 {
+                    viewModel.showRivalPicker = true
+                }
+            }) {
+                HStack(spacing: DesignSystem.Spacing.sm) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                    Text("Search teams to roast...")
+                        .font(DesignSystem.Typography.body)
+                        .foregroundColor(DesignSystem.Colors.textPlaceholder)
+                    Spacer()
+                }
+                .padding(DesignSystem.Spacing.md)
+                .background(DesignSystem.Colors.backgroundCard)
+                .cornerRadius(DesignSystem.CornerRadius.lg)
+            }
+            .disabled(viewModel.rivalTeams.count >= 3)
+            .opacity(viewModel.rivalTeams.count >= 3 ? 0.5 : 1.0)
+            
+            // Selected Rival Pills
+            if !viewModel.rivalTeams.isEmpty {
+                FlowLayout(spacing: DesignSystem.Spacing.xs) {
+                    ForEach(viewModel.rivalTeams) { team in
+                        SelectedTeamPill(team: team) {
+                            viewModel.removeRival(team)
+                        }
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $viewModel.showRivalPicker) {
+            RivalPickerView(
+                selectedRivals: $viewModel.rivalTeams,
+                myTeam: viewModel.myTeam,
+                sport: viewModel.selectedSport
+            )
+        }
+    }
+    
+    // MARK: - Intensity Section
+    
+    private var intensitySection: some View {
+        VStack(alignment: .leading, spacing: DesignSystem.Spacing.md) {
+            Text("How hard do you want to go?")
+                .font(DesignSystem.Typography.body)
+                .foregroundColor(DesignSystem.Colors.textSecondary)
+            
+            HStack(spacing: DesignSystem.Spacing.sm) {
+                ForEach(RoastIntensity.allCases, id: \.self) { intensity in
+                    IntensityButton(
+                        intensity: intensity,
+                        isSelected: viewModel.selectedIntensity == intensity
+                    ) {
+                        viewModel.selectedIntensity = intensity
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Team Suggestion Row
+
+private struct TeamSuggestionRow: View {
+    let team: SportsTeam
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: DesignSystem.Spacing.md) {
+                // Team Logo Placeholder
+                Circle()
+                    .fill(Color(hex: team.primaryColor).opacity(0.3))
+                    .frame(width: 40, height: 40)
+                    .overlay(
+                        Text(team.abbreviation)
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.white)
+                    )
+                
+                Text(team.fullName)
+                    .font(DesignSystem.Typography.body)
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                
+                Spacer()
+            }
+            .padding(DesignSystem.Spacing.md)
+            .background(DesignSystem.Colors.backgroundCard)
+            .cornerRadius(DesignSystem.CornerRadius.md)
+        }
+    }
+}
+
+// MARK: - Selected Team Pill
+
+private struct SelectedTeamPill: View {
+    let team: SportsTeam
+    let onRemove: () -> Void
+    
+    var body: some View {
+        HStack(spacing: DesignSystem.Spacing.xs) {
+            // Team Logo Placeholder
+            Circle()
+                .fill(.white.opacity(0.3))
+                .frame(width: 24, height: 24)
+                .overlay(
+                    Text(team.abbreviation.prefix(2))
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                )
+            
+            Text(team.name)
+                .font(DesignSystem.Typography.subheadline)
+                .fontWeight(.semibold)
+                .foregroundColor(.white)
+            
+            Button(action: onRemove) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 18))
+                    .foregroundColor(.white.opacity(0.8))
+            }
+        }
+        .padding(.horizontal, DesignSystem.Spacing.md)
+        .padding(.vertical, DesignSystem.Spacing.sm)
+        .background(DesignSystem.Colors.accentCyan)
+        .cornerRadius(DesignSystem.CornerRadius.full)
+    }
+}
+
+// MARK: - Intensity Button
+
+private struct IntensityButton: View {
+    let intensity: RoastIntensity
+    let isSelected: Bool
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            Text(intensity.rawValue)
+                .font(DesignSystem.Typography.subheadline)
+                .fontWeight(.bold)
+                .foregroundColor(isSelected ? .black : DesignSystem.Colors.textSecondary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 48)
+                .background(isSelected ? DesignSystem.Colors.accentCyan : DesignSystem.Colors.backgroundCard)
+                .cornerRadius(DesignSystem.CornerRadius.md)
+        }
+    }
+}
+
+// MARK: - Flow Layout for Pills
+
+private struct FlowLayout: Layout {
+    var spacing: CGFloat = 8
+    
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let result = FlowResult(in: proposal.replacingUnspecifiedDimensions().width, subviews: subviews, spacing: spacing)
+        return result.size
+    }
+    
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let result = FlowResult(in: bounds.width, subviews: subviews, spacing: spacing)
+        for (index, subview) in subviews.enumerated() {
+            subview.place(at: CGPoint(x: bounds.minX + result.frames[index].minX, y: bounds.minY + result.frames[index].minY), proposal: .unspecified)
+        }
+    }
+    
+    struct FlowResult {
+        var size: CGSize = .zero
+        var frames: [CGRect] = []
+        
+        init(in maxWidth: CGFloat, subviews: Subviews, spacing: CGFloat) {
+            var currentX: CGFloat = 0
+            var currentY: CGFloat = 0
+            var lineHeight: CGFloat = 0
+            
+            for subview in subviews {
+                let size = subview.sizeThatFits(.unspecified)
+                
+                if currentX + size.width > maxWidth && currentX > 0 {
+                    currentX = 0
+                    currentY += lineHeight + spacing
+                    lineHeight = 0
+                }
+                
+                frames.append(CGRect(origin: CGPoint(x: currentX, y: currentY), size: size))
+                currentX += size.width + spacing
+                lineHeight = max(lineHeight, size.height)
+            }
+            
+            self.size = CGSize(width: maxWidth, height: currentY + lineHeight)
+        }
+    }
+}
+
+// MARK: - Team Picker View
+
+private struct TeamPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selectedTeam: SportsTeam?
+    let sport: SportType
+    @State private var searchText = ""
+    
+    var filteredTeams: [SportsTeam] {
+        let allTeams = sport == .nba ? NBAData.allTeams : NFLData.allTeams
+        if searchText.isEmpty {
+            return allTeams
+        } else {
+            return allTeams.filter {
+                $0.fullName.localizedCaseInsensitiveContains(searchText) ||
+                $0.abbreviation.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                DesignSystem.Colors.backgroundPrimary
+                    .ignoresSafeArea()
+                
+                ScrollView {
+                    LazyVStack(spacing: DesignSystem.Spacing.xs) {
+                        ForEach(filteredTeams) { team in
+                            Button(action: {
+                                selectedTeam = team
+                                dismiss()
+                            }) {
+                                HStack(spacing: DesignSystem.Spacing.md) {
+                                    // Team Color
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color(hex: team.primaryColor))
+                                        .frame(width: 4, height: 50)
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(team.city)
+                                            .font(DesignSystem.Typography.caption1)
+                                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                                        Text(team.name)
+                                            .font(DesignSystem.Typography.headline)
+                                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Text(team.abbreviation)
+                                        .font(DesignSystem.Typography.caption1)
+                                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                                }
+                                .padding(DesignSystem.Spacing.md)
+                                .background(DesignSystem.Colors.backgroundCard)
+                                .cornerRadius(DesignSystem.CornerRadius.md)
+                            }
+                        }
+                    }
+                    .padding(DesignSystem.Spacing.lg)
+                }
+            }
+            .navigationTitle("Select Your Team")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                }
+            }
+            .searchable(text: $searchText, prompt: "Search teams...")
+        }
+    }
+}
+
+// MARK: - Rival Picker View
+
+private struct RivalPickerView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Binding var selectedRivals: [SportsTeam]
+    let myTeam: SportsTeam?
+    let sport: SportType
+    @State private var searchText = ""
+    
+    var filteredTeams: [SportsTeam] {
+        let allTeams = sport == .nba ? NBAData.allTeams : NFLData.allTeams
+        let availableTeams = allTeams.filter { team in
+            // Exclude user's team and already selected rivals
+            team.id != myTeam?.id && !selectedRivals.contains(where: { $0.id == team.id })
+        }
+        
+        if searchText.isEmpty {
+            return availableTeams
+        } else {
+            return availableTeams.filter {
+                $0.fullName.localizedCaseInsensitiveContains(searchText) ||
+                $0.abbreviation.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+    }
+    
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                DesignSystem.Colors.backgroundPrimary
+                    .ignoresSafeArea()
+                
+                ScrollView {
+                    LazyVStack(spacing: DesignSystem.Spacing.xs) {
+                        ForEach(filteredTeams) { team in
+                            Button(action: {
+                                if selectedRivals.count < 3 {
+                                    selectedRivals.append(team)
+                                    dismiss()
+                                }
+                            }) {
+                                HStack(spacing: DesignSystem.Spacing.md) {
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .fill(Color(hex: team.primaryColor))
+                                        .frame(width: 4, height: 50)
+                                    
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(team.city)
+                                            .font(DesignSystem.Typography.caption1)
+                                            .foregroundColor(DesignSystem.Colors.textSecondary)
+                                        Text(team.name)
+                                            .font(DesignSystem.Typography.headline)
+                                            .foregroundColor(DesignSystem.Colors.textPrimary)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Text(team.abbreviation)
+                                        .font(DesignSystem.Typography.caption1)
+                                        .foregroundColor(DesignSystem.Colors.textTertiary)
+                                }
+                                .padding(DesignSystem.Spacing.md)
+                                .background(DesignSystem.Colors.backgroundCard)
+                                .cornerRadius(DesignSystem.CornerRadius.md)
+                            }
+                        }
+                    }
+                    .padding(DesignSystem.Spacing.lg)
+                }
+            }
+            .navigationTitle("Select Rival Team")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                }
+            }
+            .searchable(text: $searchText, prompt: "Search teams...")
+        }
+    }
+}
+
+#Preview("Onboarding") {
+    OnboardingView()
+        .environmentObject(AuthManager())
+        .environmentObject(AppConfigManager())
+}
+
+#Preview("Tailor") {
+    NavigationStack {
+        TailorView()
+            .environmentObject(AppConfigManager())
     }
 }

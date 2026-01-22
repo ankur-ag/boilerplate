@@ -2,12 +2,11 @@
 //  RoastSession.swift
 //  boilerplate
 //
-//  RoastGPT Clone - Data Models
+//  Posterized - Data Models
 //  Created by Ankur on 1/12/26.
 //
 
 import Foundation
-import UIKit
 
 // MARK: - Roast Session
 
@@ -16,34 +15,46 @@ struct RoastSession: Identifiable, Codable, Equatable {
     let userId: String
     let inputText: String
     let roastText: String
+    let secondaryRoastText: String?
     let timestamp: Date
     let imageURL: String?
+    let secondaryImageURL: String?
     let ocrText: String?
     let source: RoastInputSource
+    let intensity: RoastIntensity
+    let sport: SportType
     
     init(
         id: String = UUID().uuidString,
         userId: String,
         inputText: String,
         roastText: String,
+        secondaryRoastText: String? = nil,
         timestamp: Date = Date(),
         imageURL: String? = nil,
+        secondaryImageURL: String? = nil,
         ocrText: String? = nil,
-        source: RoastInputSource? = nil
+        source: RoastInputSource? = nil,
+        intensity: RoastIntensity = .posterized,
+        sport: SportType = .nba
     ) {
         self.id = id
         self.userId = userId
         self.inputText = inputText
         self.roastText = roastText
+        self.secondaryRoastText = secondaryRoastText
         self.timestamp = timestamp
         self.imageURL = imageURL
+        self.secondaryImageURL = secondaryImageURL
         self.ocrText = ocrText
+        self.intensity = intensity
+        self.sport = sport
         
         // Auto-detect source if not provided
         if let source = source {
             self.source = source
         } else {
-            self.source = (imageURL != nil || ocrText != nil) ? .image : .text
+            self.source = (imageURL != nil || secondaryImageURL != nil || ocrText != nil) ? .image : .text
         }
     }
     
@@ -52,7 +63,7 @@ struct RoastSession: Identifiable, Codable, Equatable {
     }
     
     var hasImage: Bool {
-        imageURL != nil
+        imageURL != nil || secondaryImageURL != nil
     }
 }
 
