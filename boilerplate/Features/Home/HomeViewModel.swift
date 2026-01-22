@@ -2,15 +2,14 @@
 //  HomeViewModel.swift
 //  boilerplate
 //
-//  RoastGPT Clone - Home screen business logic
+//  Posterized - Text-based roast generation logic
 //  Created by Ankur on 1/12/26.
 //
 
 import Foundation
 import SwiftUI
-import PhotosUI
 
-// MARK: - Conversation Model (for backward compatibility with PromptViewModel)
+// MARK: - Conversation Model
 
 struct Conversation: Identifiable {
     let id: String
@@ -39,179 +38,234 @@ class HomeViewModel: ObservableObject {
     // MARK: - Published Properties
     
     @Published var inputText: String = ""
-    @Published var uploadedImage: UIImage?
-    @Published var extractedText: String?
-    @Published var currentRoast: String = ""
-    @Published var showImagePicker: Bool = false
-    @Published var selectedPhoto: PhotosPickerItem?
+    @Published var currentRoast: String = "" // POSTERIZED level
+    @Published var mediumRoast: String = "" // DUNKED ON level
+    @Published var submittedInput: String = ""
+    @Published var selectedIntensity: RoastIntensity = .posterized
     @Published var error: Error?
+    @Published var userPreferences: UserSportsPreferences?
     
-    @Published private(set) var isExtractingText: Bool = false
     @Published private(set) var isGenerating: Bool = false
     @Published private(set) var currentSession: RoastSession?
     
     // MARK: - Dependencies
     
-    private let ocrManager = OCRManager()
     private let firebaseService = FirebaseService.shared
+    private let storageManager = StorageManager()
+    
+    // MARK: - Initialization
+    
+    init() {
+        loadUserPreferences()
+    }
     
     // MARK: - Computed Properties
     
     var canGenerate: Bool {
-        (!inputText.isEmpty || extractedText != nil) && !isProcessing
-    }
-    
-    var isProcessing: Bool {
-        isExtractingText || isGenerating
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isGenerating
     }
     
     var hasOutput: Bool {
         !currentRoast.isEmpty
     }
     
-    private var effectiveInputText: String {
-        if let extracted = extractedText, !extracted.isEmpty {
-            return extracted
-        }
-        return inputText
+    var isProcessing: Bool {
+        isGenerating
     }
     
-    // MARK: - Image Processing
+    // MARK: - User Preferences
     
-    func processSelectedPhoto() async {
-        guard let photo = selectedPhoto else {
-            return
-        }
-        
-        // Clear selectedPhoto immediately to avoid re-triggering onChange
-        // Store reference before clearing
-        let photoToProcess = photo
-        selectedPhoto = nil
-        
-        do {
-            // Load image data
-            guard let data = try await photoToProcess.loadTransferable(type: Data.self),
-                  let image = UIImage(data: data) else {
-                return
-            }
-            
-            uploadedImage = image
-            
-            // Extract text using OCR
-            await extractTextFromImage(image)
-            
-        } catch {
-            self.error = error
+    func loadUserPreferences() {
+        if let prefs = try? storageManager.load(UserSportsPreferences.self, forKey: "sports_preferences") {
+            userPreferences = prefs
         }
     }
     
-    private func extractTextFromImage(_ image: UIImage) async {
-        isExtractingText = true
-        
+    func refreshPreferences(userId: String) async {
         do {
-            let text = try await ocrManager.recognizeText(from: image)
-            let cleaned = ocrManager.cleanExtractedText(text)
-            
-            extractedText = cleaned
-            
-            // Clear manual input when we have OCR text
-            if !cleaned.isEmpty {
-                inputText = ""
-            }
-            
-        } catch let error as OCRError {
-            // Don't treat noTextFound as a hard error - user can still generate roast from manual input
-            if case .noTextFound = error {
-                extractedText = nil
-                // Don't set self.error - this is not a fatal error
-            } else {
-                self.error = error
-                extractedText = nil
+            if let cloudPrefs = try await firebaseService.loadUserPreferences(userId: userId) {
+                await MainActor.run {
+                    self.userPreferences = cloudPrefs
+                    self.selectedIntensity = cloudPrefs.intensity
+                }
+                // Save locally too
+                storageManager.saveUserSportsPreferences(cloudPrefs)
             }
         } catch {
-            self.error = error
-            extractedText = nil
+            print("❌ [Home] Failed to refresh preferences from Firebase: \(error.localizedDescription)")
         }
-        
-        isExtractingText = false
-    }
-    
-    func clearImage() {
-        uploadedImage = nil
-        extractedText = nil
-        selectedPhoto = nil
     }
     
     // MARK: - Roast Generation
     
-    func generateRoast(using llmManager: LLMManager, userId: String) async {
+    func generateRoast(
+        using llmManager: LLMManager,
+        userId: String,
+        usageManager: UsageManager? = nil,
+        onFirstRoast: (() -> Void)? = nil
+    ) async {
         guard canGenerate else { return }
+        
+        print("🎯 generateRoast called")
+        print("🎯 llmManager isConfigured: \(llmManager.isConfigured)")
+        
+        // Track if this is first roast
+        let isFirstRoast = usageManager?.textRoastCount == 0
         
         isGenerating = true
         currentRoast = ""
+        mediumRoast = ""
         error = nil
         
-        let inputForRoast = effectiveInputText
-        let prompt = buildRoastPrompt(for: inputForRoast)
+        let inputForRoast = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        submittedInput = inputForRoast
+        
+        // Generate POSTERIZED level (highest)
+        let posterizedPrompt = buildRoastPrompt(for: inputForRoast, intensity: .posterized)
         
         do {
-            // Use streaming for real-time response
-            try await llmManager.streamPrompt(
-                prompt,
-                context: [],
-                onChunk: { [weak self] chunk in
-                    Task { @MainActor in
-                        self?.currentRoast += chunk
-                    }
-                },
-                onComplete: { [weak self] response in
-                    Task { @MainActor in
-                        guard let self = self else { return }
-                        
-                        // Create session
-                        let session = RoastSession(
-                            userId: userId,
-                            inputText: inputForRoast,
-                            roastText: self.currentRoast,
-                            imageURL: nil, // TODO: Upload image to Firebase Storage
-                            ocrText: self.extractedText
-                        )
-                        
-                        self.currentSession = session
-                        
-                        // Save to Firebase
-                        await self.saveSession(session)
-                        
-                        self.isGenerating = false
-                    }
-                }
-            )
+            // Generate posterized roast (non-streaming)
+            let response = try await llmManager.sendPrompt(posterizedPrompt, context: [])
+            self.currentRoast = response.content
             
+            // Generate medium level roast
+            await self.generateMediumRoast(
+                using: llmManager,
+                userId: userId,
+                inputForRoast: inputForRoast,
+                usageManager: usageManager,
+                isFirstRoast: isFirstRoast,
+                onFirstRoast: onFirstRoast
+            )
         } catch {
             self.error = error
             isGenerating = false
         }
     }
     
-    func regenerateRoast(using llmManager: LLMManager, userId: String) async {
-        // Clear current roast and regenerate
+    private func generateMediumRoast(
+        using llmManager: LLMManager,
+        userId: String,
+        inputForRoast: String,
+        usageManager: UsageManager?,
+        isFirstRoast: Bool,
+        onFirstRoast: (() -> Void)?
+    ) async {
+        let mediumPrompt = buildRoastPrompt(for: inputForRoast, intensity: .dunkedOn)
+        
+        do {
+            // Generate medium roast (non-streaming for simplicity)
+            let response = try await llmManager.sendPrompt(mediumPrompt, context: [])
+            self.mediumRoast = response.content
+            
+            // Create session with both roast levels
+            let session = RoastSession(
+                userId: userId,
+                inputText: inputForRoast,
+                roastText: self.currentRoast,
+                secondaryRoastText: self.mediumRoast,
+                imageURL: nil,
+                ocrText: nil,
+                source: .text,
+                intensity: self.selectedIntensity,
+                sport: userPreferences?.selectedSport ?? .nba
+            )
+            
+            self.currentSession = session
+            
+            // Save to Firebase
+            await self.saveSession(session)
+            
+            self.isGenerating = false
+            
+            // Clear input after successful generation
+            self.inputText = ""
+            
+            // Increment usage count
+            usageManager?.incrementTextRoastCount()
+            
+            // Trigger first roast callback
+            if isFirstRoast {
+                onFirstRoast?()
+            }
+            
+        } catch {
+            self.error = error
+            self.isGenerating = false
+        }
+    }
+    
+    func regenerateRoast(using llmManager: LLMManager, userId: String, usageManager: UsageManager? = nil) async {
+        // Use the submitted input to regenerate
+        inputText = submittedInput
         currentRoast = ""
-        await generateRoast(using: llmManager, userId: userId)
+        mediumRoast = ""
+        await generateRoast(using: llmManager, userId: userId, usageManager: usageManager)
+    }
+    
+    func clearOutput() {
+        currentRoast = ""
+        mediumRoast = ""
+        submittedInput = ""
+        inputText = ""
+        currentSession = nil
+    }
+    
+    func loadSession(_ session: RoastSession) {
+        self.currentSession = session
+        self.submittedInput = session.inputText
+        self.currentRoast = session.roastText
+        self.mediumRoast = session.secondaryRoastText ?? ""
+        self.inputText = ""
+        self.isGenerating = false
     }
     
     // MARK: - Prompt Building
     
-    private func buildRoastPrompt(for text: String) -> String {
-        return """
-        You are RoastGPT, a savage AI roast generator. Your job is to deliver brutal, witty, and hilarious roasts.
+    private func buildRoastPrompt(for text: String, intensity: RoastIntensity) -> String {
+        // Load user sports preferences
+        var sportsContext = ""
+        var selectedSport: SportType = .nba
         
-        Be creative, be savage, but keep it entertaining. Use humor, wordplay, and clever observations.
+        if let savedPrefs = try? storageManager.load(UserSportsPreferences.self, forKey: "sports_preferences") {
+            selectedSport = savedPrefs.selectedSport
+            let myTeam = savedPrefs.myTeam.fullName
+            let rivals = savedPrefs.rivalTeams.map { $0.fullName }.joined(separator: ", ")
+            
+            sportsContext = """
+            Context: The user is a \(myTeam) fan. Their rivals are: \(rivals).
+            """
+        }
+        
+        let intensityInstruction: String
+        switch intensity {
+        case .trashTalk:
+            intensityInstruction = "Keep it light and playful. Use gentle ribbing and friendly banter."
+        case .dunkedOn:
+            intensityInstruction = "Deliver a solid roast with clever wordplay. Medium heat, entertaining burns."
+        case .posterized:
+            intensityInstruction = "Go absolutely savage. Maximum brutality. Destroy them with no mercy. Pull out all the stops."
+        }
+        
+        let sportSpecificInstruction = selectedSport == .nba ? 
+            "Use NBA references, player comparisons, championship droughts, playoff failures, and rivalry history. Be creative with basketball metaphors and terminology." :
+            "Use NFL references, player stats, Super Bowl droughts, draft bust history, and team failures. Use football metaphors like fumbles, interceptions, and goal-line stands."
+        
+        return """
+        You are Posterized AI, a sports roasting expert specializing in \(selectedSport.rawValue) trash talk. Your job is to deliver clever, savage, and hilarious sports roasts.
+        
+        \(sportsContext)
+        
+        Intensity level: \(intensity.rawValue)
+        \(intensityInstruction)
+        
+        \(sportSpecificInstruction)
         
         Here's the text to roast:
         
         "\(text)"
         
-        Now deliver an epic roast (2-4 sentences):
+        Now deliver a \(selectedSport.rawValue)-themed roast (2-4 sentences):
         """
     }
     
@@ -219,10 +273,12 @@ class HomeViewModel: ObservableObject {
     
     func copyRoast() {
         UIPasteboard.general.string = currentRoast
-        // TODO: Show success feedback
+        // TODO: Show success toast/feedback
     }
     
-    func shareRoast() {
+    func shareRoast(_ text: String? = nil) {
+        let textToShare = text ?? currentRoast
+        guard !textToShare.isEmpty else { return }
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = scene.windows.first,
               let rootVC = window.rootViewController else {
@@ -230,7 +286,7 @@ class HomeViewModel: ObservableObject {
         }
         
         let activityVC = UIActivityViewController(
-            activityItems: [currentRoast],
+            activityItems: [text],
             applicationActivities: nil
         )
         
@@ -242,6 +298,10 @@ class HomeViewModel: ObservableObject {
         }
         
         rootVC.present(activityVC, animated: true)
+    }
+    
+    func clearInput() {
+        inputText = ""
     }
     
     // MARK: - Data Persistence

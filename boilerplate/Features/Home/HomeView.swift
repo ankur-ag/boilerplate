@@ -182,15 +182,6 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
             // Tags
             HStack(spacing: DesignSystem.Spacing.xs) {
-                // Source Tag
-                Text("TEXT")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color(hex: "4A4A4A"))
-                    .cornerRadius(3)
-                
                 // Intensity Tag
                 Text(intensity.rawValue)
                     .font(.system(size: 10, weight: .bold))

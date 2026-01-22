@@ -88,12 +88,12 @@
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "GEMINI_API_KEY"
-            value = "YOUR_GEMINI_API_KEY"
+            value = "AIzaSyAehhR7C61fc6S1ru6lx4RZEBexU1kaQ6E"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "R2_ACCOUNT_ID"
-            value = "YOUR_R2_ACCOUNT_ID"
+            value = "32cebdbf346fab7c1c48d2e46fc3b423"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
@@ -103,12 +103,12 @@
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "R2_ACCESS_KEY_ID"
-            value = "YOUR_R2_ACCESS_KEY_ID"
+            value = "12d859d6877cbd255b9d243fa00effc2"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "R2_SECRET_ACCESS_KEY"
-            value = "YOUR_R2_SECRET_ACCESS_KEY"
+            value = "35f7b0873b537cfd7ca8776fc4f1544aafe49466ae2c5bee8a6be958254daa9f"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable

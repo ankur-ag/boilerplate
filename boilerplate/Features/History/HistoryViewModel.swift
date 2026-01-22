@@ -2,7 +2,7 @@
 //  HistoryViewModel.swift
 //  boilerplate
 //
-//  RoastGPT Clone - History screen business logic
+//  Posterized - History screen business logic
 //  Created by Ankur on 1/12/26.
 //
 

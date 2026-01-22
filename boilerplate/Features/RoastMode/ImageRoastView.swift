@@ -246,15 +246,6 @@ struct ImageRoastView: View {
             
             // Tags and Share Button
             HStack(spacing: DesignSystem.Spacing.xs) {
-                // Source Tag
-                Text("IMAGE")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
-                    .background(Color(hex: "4A4A4A"))
-                    .cornerRadius(4)
-                
                 // Intensity Tag
                 Text(intensity.rawValue)
                     .font(.system(size: 10, weight: .bold))

@@ -32,6 +32,8 @@ struct HistoryView: View {
             }
             .navigationTitle("History")
             .navigationBarTitleDisplayMode(.large)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(DesignSystem.Colors.backgroundSecondary, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
@@ -46,7 +48,7 @@ struct HistoryView: View {
                     }
                 }
             }
-            .searchable(text: $searchText, prompt: "Search posterizes...")
+            .searchable(text: $searchText, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search posterizes...")
             .refreshable {
                 await viewModel.loadSessions(userId: authManager.currentUser?.id ?? "anonymous")
             }
@@ -193,10 +195,6 @@ private struct RoastSessionCard: View {
                     .font(.system(size: DesignSystem.IconSize.sm))
                     .foregroundColor(DesignSystem.Colors.primaryOrange)
                 
-                Text(session.source == .image ? "From Image" : "From Text")
-                    .font(DesignSystem.Typography.caption1)
-                    .foregroundColor(DesignSystem.Colors.textSecondary)
-                
                 Spacer()
                 
                 Text(session.timestamp.formatted(date: .omitted, time: .shortened))
@@ -218,15 +216,6 @@ private struct RoastSessionCard: View {
             
             // Source & Intensity Tags
             HStack(spacing: DesignSystem.Spacing.xs) {
-                // Source Tag
-                Text(session.source == .image ? "IMAGE" : "TEXT")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color(hex: "4A4A4A"))
-                    .cornerRadius(2)
-                
                 // Intensity Tag
                 Text(session.intensity.rawValue)
                     .font(.system(size: 8, weight: .bold))
@@ -273,10 +262,6 @@ struct RoastDetailView: View {
                 VStack(spacing: DesignSystem.Spacing.xl) {
                     // Metadata
                     VStack(spacing: DesignSystem.Spacing.xs) {
-                        Image(systemName: session.source == .image ? "photo.fill" : "text.quote")
-                            .font(.system(size: DesignSystem.IconSize.xl))
-                            .foregroundColor(DesignSystem.Colors.primaryOrange)
-                        
                         Text(session.timestamp.formatted(date: .long, time: .shortened))
                             .font(DesignSystem.Typography.caption1)
                             .foregroundColor(DesignSystem.Colors.textSecondary)

@@ -16,7 +16,20 @@ struct BoilerplateApp: App {
     @StateObject private var featureFlagManager = FeatureFlagManager()
     @StateObject private var appConfigManager = AppConfigManager()
     @StateObject private var usageManager = UsageManager()
-    @StateObject private var imageGenerationManager = ImageGenerationManager()
+    // IMAGE GENERATION MANAGER
+    @StateObject private var imageGenerationManager: ImageGenerationManager = {
+        let manager = ImageGenerationManager()
+        let geminiKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"] ?? ""
+        
+        if !geminiKey.isEmpty {
+            let geminiImageService = GeminiImageGenerationService(apiKey: geminiKey)
+            manager.configure(with: geminiImageService)
+            print("✅ Image Generation configured")
+        }
+        
+        return manager
+    }()
+    
     @StateObject private var analyticsManager = AnalyticsManager()
     
     // LLM Manager with OpenAI and Gemini configuration
