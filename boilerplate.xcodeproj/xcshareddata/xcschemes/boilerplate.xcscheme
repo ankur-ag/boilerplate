@@ -88,37 +88,57 @@
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "GEMINI_API_KEY"
-            value = "AIzaSyABt7FkhNYlMmxhgSt7veTWlWI8wXFybpg"
+            value = "YOUR_GEMINI_API_KEY"
             isEnabled = "YES">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "R2_ACCOUNT_ID"
-            value = "32cebdbf346fab7c1c48d2e46fc3b423"
-            isEnabled = "YES">
+            value = "YOUR_R2_ACCOUNT_ID"
+            isEnabled = "NO">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "R2_BUCKET_NAME"
             value = "hobby"
-            isEnabled = "YES">
+            isEnabled = "NO">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "R2_ACCESS_KEY_ID"
-            value = "12d859d6877cbd255b9d243fa00effc2"
-            isEnabled = "YES">
+            value = "YOUR_R2_ACCESS_KEY_ID"
+            isEnabled = "NO">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "R2_SECRET_ACCESS_KEY"
-            value = "35f7b0873b537cfd7ca8776fc4f1544aafe49466ae2c5bee8a6be958254daa9f"
-            isEnabled = "YES">
+            value = "YOUR_R2_SECRET_ACCESS_KEY"
+            isEnabled = "NO">
          </EnvironmentVariable>
          <EnvironmentVariable
             key = "R2_PUBLIC_URL_PREFIX"
             value = "hobby.launchstack.work"
+            isEnabled = "NO">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "REPLICATE_API_TOKEN"
+            value = "YOUR_REPLICATE_API_TOKEN"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "IMAGEKIT_PRIVATE_KEY"
+            value = "YOUR_IMAGEKIT_PRIVATE_KEY"
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "IMAGEKIT_PUBLIC_KEY"
+            value = "public_YsxEkvhkEGyD6jwuO6Rv0CWf8Zc="
+            isEnabled = "YES">
+         </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "IMAGEKIT_URL_ENDPOINT"
+            value = "https://ik.imagekit.io/hyre"
             isEnabled = "YES">
          </EnvironmentVariable>
       </EnvironmentVariables>
       <StoreKitConfigurationFileReference
-         identifier = "../../Subscriptions.storekit">
+         identifier = "../../boilerplate/Configuration.storekit">
       </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction

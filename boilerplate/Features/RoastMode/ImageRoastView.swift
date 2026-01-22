@@ -175,11 +175,13 @@ struct ImageRoastView: View {
             // Image Area
             ZStack {
                 // Actual image or loading state
-                if let rawURLString = imageURL, 
-                   let publicizedURLString = Optional(CloudflareR2Service.shared.publicizeURL(rawURLString)) {
+                if let rawURLString = imageURL {
+                    // ImageKit returns full public URLs, no need to publicize manually unless using relative paths
+                    let publicizedURLString = rawURLString
+                    
                     // Add reloadID to force re-evaluation of the URL and its object identity (Network only)
-                    let finalURLString = publicizedURLString.hasPrefix("http") 
-                        ? "\(publicizedURLString)\(publicizedURLString.contains("?") ? "&" : "?")v=\(reloadID.uuidString.prefix(8))" 
+                    let finalURLString = publicizedURLString.hasPrefix("http")
+                        ? "\(publicizedURLString)\(publicizedURLString.contains("?") ? "&" : "?")v=\(reloadID.uuidString.prefix(8))"
                         : publicizedURLString
                     
                     if let url = URL(string: finalURLString) {
@@ -438,6 +440,7 @@ struct ImageRoastView: View {
                 HStack(spacing: DesignSystem.Spacing.xs) {
                     Image(systemName: "arrow.clockwise.circle.fill")
                         .font(.title3)
+                        .fontWeight(.bold)
                     Text("REGENERATE")
                         .font(DesignSystem.Typography.subheadline)
                         .fontWeight(.bold)
@@ -556,6 +559,12 @@ class ImageRoastViewModel: ObservableObject {
                 self.error = error // Store the error but try next level if relevant
             }
             
+            // Artificial delay to avoid Rate Limits (429) on free/trial tiers
+            if posterizedURL != nil {
+                print("⏳ Waiting to avoid rate limits...")
+                try? await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds delay
+            }
+            
             // Level 2: DUNKED ON
             var dunkedOnURL: String?
             do {
@@ -584,6 +593,25 @@ class ImageRoastViewModel: ObservableObject {
                         }
                     }
                 )
+            } else if let dURL = dunkedOnURL {
+                // Determine if we should treat this as success if only second worked
+                print("✅ Image roast generated (only secondary level)")
+                await createAndUploadSession(
+                    userId: userId,
+                    input: inputForRoast,
+                    localURL: dURL, // Use dunkedOn as primary if posterized failed
+                    secondaryLocalURL: nil,
+                    intensity: self.selectedIntensity,
+                    onSuccess: {
+                        usageManager?.incrementImageRoastCount()
+                        if isFirstRoast {
+                            onFirstRoast?()
+                        }
+                    }
+                 )
+                 // Update the UI model to show this as primary since P1 failed
+                 posterizedImage = dURL
+                 dunkedOnImage = nil
             } else {
                 print("❌ [ViewModel] Both image generation levels failed")
                 if self.error == nil { self.error = ImageGenerationError.generationFailed("Could not generate any images") }
@@ -753,9 +781,9 @@ class ImageRoastViewModel: ObservableObject {
             try await firebaseService.saveRoastSession(session)
             
             // Trigger background upload for both images
-            uploadImageToR2(localURL: localURL, userId: userId, sessionId: sessionId, isSecondary: false)
+            uploadImageToCloud(localURL: localURL, userId: userId, sessionId: sessionId, isSecondary: false)
             if let secondaryLocalURL = secondaryLocalURL {
-                uploadImageToR2(localURL: secondaryLocalURL, userId: userId, sessionId: sessionId, isSecondary: true)
+                uploadImageToCloud(localURL: secondaryLocalURL, userId: userId, sessionId: sessionId, isSecondary: true)
             }
             
             onSuccess()
@@ -766,29 +794,29 @@ class ImageRoastViewModel: ObservableObject {
         }
     }
     
-    private func uploadImageToR2(localURL: String, userId: String, sessionId: String, isSecondary: Bool) {
+    private func uploadImageToCloud(localURL: String, userId: String, sessionId: String, isSecondary: Bool) {
         Task.detached(priority: .background) {
             guard let url = URL(string: localURL),
                   let imageData = try? Data(contentsOf: url) else { 
-                print("❌ [R2] Could not load image data for upload from: \(localURL)")
+                print("❌ [ImageKit] Could not load image data for upload from: \(localURL)")
                 return 
             }
             
             do {
                 let suffix = isSecondary ? "_secondary" : ""
                 let fileName = "roasts/\(userId)/\(sessionId)\(suffix).png"
-                let r2URL = try await CloudflareR2Service.shared.uploadImage(imageData, fileName: fileName)
+                let imageKitURL = try await ImageKitService.shared.uploadImage(imageData, fileName: fileName)
                 
-                // Update Firestore session with the R2 URL
+                // Update Firestore session with the ImageKit URL
                 if isSecondary {
-                    try await FirebaseService.shared.updateSessionImages(sessionId: sessionId, secondaryImageURL: r2URL)
+                    try await FirebaseService.shared.updateSessionImages(sessionId: sessionId, secondaryImageURL: imageKitURL)
                 } else {
-                    try await FirebaseService.shared.updateSessionImages(sessionId: sessionId, imageURL: r2URL)
+                    try await FirebaseService.shared.updateSessionImages(sessionId: sessionId, imageURL: imageKitURL)
                 }
                 
-                print("✅ [R2] Session \(sessionId) \(isSecondary ? "secondary" : "primary") image updated")
+                print("✅ [ImageKit] Session images updated")
             } catch {
-                print("❌ [R2] Async upload failed: \(error.localizedDescription)")
+                print("❌ [ImageKit] Async upload failed: \(error.localizedDescription)")
             }
         }
     }

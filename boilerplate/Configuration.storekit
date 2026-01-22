@@ -1,0 +1,121 @@
+{
+  "identifier" : "E2C1DA34",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "199.99",
+      "familyShareable" : false,
+      "internalID" : "3C1A1D54",
+      "localizations" : [
+        {
+          "description" : "One-time purchase for lifetime access",
+          "displayName" : "Lifetime Access",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.posterized.pro.lifetime",
+      "referenceName" : "Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_storeKitError" : 0
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "29381023",
+      "localizations" : [
+        {
+          "description" : "Unlock all premium features",
+          "displayName" : "Pro Access",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "Pro Access",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "4.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "D9C1A2B3",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Weekly access to pro features",
+              "displayName" : "Weekly Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.posterized.pro.weekly",
+          "recurringSubscriptionPeriod" : "P1W",
+          "referenceName" : "Weekly",
+          "subscriptionGroupID" : "29381023",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "A1B2C3D4",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Monthly access to pro features",
+              "displayName" : "Monthly Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.posterized.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly",
+          "subscriptionGroupID" : "29381023",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "49.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "E5F6G7H8",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Annual access to pro features",
+              "displayName" : "Annual Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.posterized.pro.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Annual",
+          "subscriptionGroupID" : "29381023",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

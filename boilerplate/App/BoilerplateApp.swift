@@ -16,15 +16,21 @@ struct BoilerplateApp: App {
     @StateObject private var featureFlagManager = FeatureFlagManager()
     @StateObject private var appConfigManager = AppConfigManager()
     @StateObject private var usageManager = UsageManager()
-    // IMAGE GENERATION MANAGER
     @StateObject private var imageGenerationManager: ImageGenerationManager = {
         let manager = ImageGenerationManager()
+        let replicateKey = ProcessInfo.processInfo.environment["REPLICATE_API_TOKEN"] ?? ""
         let geminiKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"] ?? ""
         
-        if !geminiKey.isEmpty {
+        if !replicateKey.isEmpty {
+            let replicateService = ReplicateImageGenerationService(apiKey: replicateKey)
+            manager.configure(with: replicateService)
+            print("✅ Image Generation configured with Replicate")
+        } else if !geminiKey.isEmpty {
             let geminiImageService = GeminiImageGenerationService(apiKey: geminiKey)
             manager.configure(with: geminiImageService)
-            print("✅ Image Generation configured")
+            print("✅ Image Generation configured with Gemini (Fallback)")
+        } else {
+            print("⚠️ Image Generation Service NOT configured (Missing API Keys)")
         }
         
         return manager

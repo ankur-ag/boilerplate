@@ -11,6 +11,7 @@ import SwiftUI
 struct AppRootView: View {
     @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var appConfigManager: AppConfigManager
+    @EnvironmentObject private var subscriptionManager: SubscriptionManager
     
     var body: some View {
         Group {
@@ -56,8 +57,9 @@ struct AppRootView: View {
         // Initialize managers in parallel
         async let authInit: () = authManager.initialize()
         async let configInit: () = appConfigManager.loadConfig()
+        async let subInit: () = subscriptionManager.loadProducts()
         
-        _ = await (authInit, configInit)
+        _ = await (authInit, configInit, subInit)
     }
 }
 

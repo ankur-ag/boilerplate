@@ -139,31 +139,25 @@ struct FeedbackView: View {
     
     // MARK: - Submit Button
     
+    // MARK: - Submit Button
+    
     private var submitButton: some View {
         Button(action: {
-            Task {
-                await viewModel.submitFeedback()
-            }
+            viewModel.openMailComposer()
         }) {
             HStack(spacing: DesignSystem.Spacing.sm) {
-                if viewModel.isSubmitting {
-                    ProgressView()
-                        .tint(.white)
-                } else {
-                    Text("Submit Feedback")
-                        .font(.system(size: 17, weight: .semibold))
-                    
-                    Image(systemName: "paperplane.fill")
-                        .font(.system(size: 16))
-                }
+                Text("Send via Email")
+                    .font(.system(size: 17, weight: .semibold))
+                
+                Image(systemName: "envelope.fill")
+                    .font(.system(size: 16))
             }
             .foregroundColor(.white)
             .frame(maxWidth: .infinity)
             .frame(height: 56)
-            .background(viewModel.canSubmit ? DesignSystem.Colors.primaryOrange : DesignSystem.Colors.textSecondary)
+            .background(DesignSystem.Colors.primaryOrange)
             .cornerRadius(DesignSystem.CornerRadius.lg)
         }
-        .disabled(!viewModel.canSubmit)
         .padding(.top, DesignSystem.Spacing.md)
     }
 }
@@ -202,26 +196,37 @@ class FeedbackViewModel: ObservableObject {
         !feedbackText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isSubmitting
     }
     
-    func submitFeedback() async {
-        guard canSubmit else { return }
+    func openMailComposer() {
+        let subject = "Posterized Feedback: \(selectedCategory.shortTitle)"
+        let body = """
+        Category: \(selectedCategory.title)
         
-        isSubmitting = true
-        error = nil
+        Message:
+        \(feedbackText)
         
-        // Simulate API call
-        do {
-            try await Task.sleep(nanoseconds: 1_500_000_000) // 1.5s
-            
-            // TODO: Implement actual feedback submission to backend
-            // await firebaseService.submitFeedback(category: selectedCategory, text: feedbackText)
-            
-            showSuccessAlert = true
-            
-        } catch {
-            self.error = error
+        --------------------------------
+        Device: \(UIDevice.current.model)
+        System: \(UIDevice.current.systemName) \(UIDevice.current.systemVersion)
+        """
+        
+        let recipient = "support@hyretalents.com"
+        
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = recipient
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
+        
+        if let url = components.url {
+            if UIApplication.shared.canOpenURL(url) {
+                UIApplication.shared.open(url)
+            } else {
+                // Fallback or error handling if no mail client
+                print("❌ Cannot open mail client")
+            }
         }
-        
-        isSubmitting = false
     }
 }
 
