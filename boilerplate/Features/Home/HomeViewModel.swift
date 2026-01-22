@@ -223,49 +223,39 @@ class HomeViewModel: ObservableObject {
     // MARK: - Prompt Building
     
     private func buildRoastPrompt(for text: String, intensity: RoastIntensity) -> String {
-        // Load user sports preferences
-        var sportsContext = ""
-        var selectedSport: SportType = .nba
-        
-        if let savedPrefs = try? storageManager.load(UserSportsPreferences.self, forKey: "sports_preferences") {
-            selectedSport = savedPrefs.selectedSport
-            let myTeam = savedPrefs.myTeam.fullName
-            let rivals = savedPrefs.rivalTeams.map { $0.fullName }.joined(separator: ", ")
-            
-            sportsContext = """
-            Context: The user is a \(myTeam) fan. Their rivals are: \(rivals).
-            """
-        }
-        
-        let intensityInstruction: String
-        switch intensity {
-        case .trashTalk:
-            intensityInstruction = "Keep it light and playful. Use gentle ribbing and friendly banter."
-        case .dunkedOn:
-            intensityInstruction = "Deliver a solid roast with clever wordplay. Medium heat, entertaining burns."
-        case .posterized:
-            intensityInstruction = "Go absolutely savage. Maximum brutality. Destroy them with no mercy. Pull out all the stops."
-        }
-        
-        let sportSpecificInstruction = selectedSport == .nba ? 
-            "Use NBA references, player comparisons, championship droughts, playoff failures, and rivalry history. Be creative with basketball metaphors and terminology." :
-            "Use NFL references, player stats, Super Bowl droughts, draft bust history, and team failures. Use football metaphors like fumbles, interceptions, and goal-line stands."
-        
         return """
-        You are Posterized AI, a sports roasting expert specializing in \(selectedSport.rawValue) trash talk. Your job is to deliver clever, savage, and hilarious sports roasts.
-        
-        \(sportsContext)
-        
-        Intensity level: \(intensity.rawValue)
-        \(intensityInstruction)
-        
-        \(sportSpecificInstruction)
-        
-        Here's the text to roast:
-        
-        "\(text)"
-        
-        Now deliver a \(selectedSport.rawValue)-themed roast (2-4 sentences):
+        You are a savage but clever NBA roast writer creating short, punchy basketball roasts meant for group chats and memes.
+
+        Goal:
+        Generate ONE high-impact NBA roast based on the user’s context. The roast should be funny, sharp, and immediately understandable to NBA fans.
+
+        Tone & style:
+        - Witty, confident, and ruthless but playful
+        - Reads like something that would get screenshotted in a group chat
+        - No long explanations, no essays
+        - Modern NBA fan humor (Twitter / Reddit / locker-room banter style)
+
+        Roast intensity is controlled by {intensity}:
+        - trash talk (mild): playful teasing, light embarrassment
+        - dunk on (medium): obvious humiliation, sharper insults
+        - posterized (severe, default): maximum roast, ruthless but clever
+
+        Rules:
+        - If real NBA players or teams are mentioned, roast them directly and clearly (no vague references).
+        - Avoid self-harm, suicide, or mocking disabilities or medical conditions.
+        - Roast allowed topics include: choking, clutch failures, “washed” debates, ring debates, ego, media hype, fanbase delusion, ref favoritism, fake toughness, load management jokes, etc.
+        - Keep it sharp, not hateful.
+
+        Input:
+        - Context: \(text)
+        - Intensity: \(intensity.rawValue.replacingOccurrences(of: "_", with: " "))
+
+        Output requirements:
+        - Output a SINGLE roast.
+        - 1–2 lines max.
+        - No emojis unless they genuinely add punch.
+        - No disclaimers, no explanations, no alternatives.
+        - The roast should stand alone as a meme caption.
         """
     }
     
