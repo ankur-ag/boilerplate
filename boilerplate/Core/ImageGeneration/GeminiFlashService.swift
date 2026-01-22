@@ -24,6 +24,11 @@ class GeminiFlashService: ImageGenerationServiceProtocol {
         // Build the enhanced prompt for Gemini
         let enhancedPrompt = buildImagePrompt(userPrompt: prompt, style: style)
         
+        // Debug: Log masked key to verify consistency
+        let keyLength = apiKey.count
+        let maskedKey = keyLength > 8 ? "\(apiKey.prefix(4))...\(apiKey.suffix(4))" : "***"
+        print("🔑 [Gemini Flash] Using API Key: \(maskedKey) (Length: \(keyLength))")
+        
         // This endpoint was identified from earlier git history
         let endpoint = "\(baseURL)/models/gemini-2.5-flash-image:generateContent?key=\(apiKey)"
         

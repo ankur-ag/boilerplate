@@ -21,14 +21,15 @@ struct BoilerplateApp: App {
         let replicateKey = ProcessInfo.processInfo.environment["REPLICATE_API_TOKEN"] ?? ""
         let geminiKey = ProcessInfo.processInfo.environment["GEMINI_API_KEY"] ?? ""
         
-        if !replicateKey.isEmpty {
+        // TEST MODE: Prioritize Gemini Flash
+        if !geminiKey.isEmpty {
+            let geminiService = GeminiFlashService(apiKey: geminiKey)
+            manager.configure(with: geminiService)
+            print("✅ Image Generation configured with Gemini Flash (TEST MODE)")
+        } else if !replicateKey.isEmpty {
             let replicateService = ReplicateImageGenerationService(apiKey: replicateKey)
             manager.configure(with: replicateService)
             print("✅ Image Generation configured with Replicate")
-        } else if !geminiKey.isEmpty {
-            let geminiImageService = GeminiImageGenerationService(apiKey: geminiKey)
-            manager.configure(with: geminiImageService)
-            print("✅ Image Generation configured with Gemini (Fallback)")
         } else {
             print("⚠️ Image Generation Service NOT configured (Missing API Keys)")
         }
