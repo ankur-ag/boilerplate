@@ -2,7 +2,7 @@
 //  StreamingTextView.swift
 //  boilerplate
 //
-//  RoastGPT Clone - Reusable Streaming Text Component
+//  Posterized - Reusable Streaming Text Component
 //  Created by Ankur on 1/12/26.
 //
 
