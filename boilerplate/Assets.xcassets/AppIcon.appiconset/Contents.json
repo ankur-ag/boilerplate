@@ -1,6 +1,7 @@
 {
   "images" : [
     {
+      "filename" : "Posterized Logo complete v2 background removed.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -12,6 +13,7 @@
           "value" : "dark"
         }
       ],
+      "filename" : "Posterized Logo complete v2 background removed 1.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
@@ -23,6 +25,7 @@
           "value" : "tinted"
         }
       ],
+      "filename" : "Posterized Logo complete v2 background removed 2.png",
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"

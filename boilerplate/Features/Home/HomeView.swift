@@ -327,6 +327,8 @@ struct HomeView: View {
                 
                 // Send Button
                 Button(action: {
+                    isInputFocused = false
+                    
                     // Check if user can generate roast
                     if !usageManager.canGenerateTextRoast(isPremium: subscriptionManager.isPremium) {
                         showPaywall = true

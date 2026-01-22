@@ -300,7 +300,7 @@ class HomeViewModel: ObservableObject {
         }
         
         let activityVC = UIActivityViewController(
-            activityItems: [text],
+            activityItems: [textToShare],
             applicationActivities: nil
         )
         

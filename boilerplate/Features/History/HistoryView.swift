@@ -350,13 +350,24 @@ struct RoastDetailView: View {
                     // Roast Output
                     RoastCard(
                         title: "The Posterize",
-                        text: session.roastText,
+                        text: session.source == .image ? "View and Share Posterize" : session.roastText,
                         isStreaming: false,
                         onCopy: {
-                            UIPasteboard.general.string = session.roastText
+                            if session.source == .text {
+                                UIPasteboard.general.string = session.roastText
+                            } else if let imageURL = session.imageURL {
+                                UIPasteboard.general.string = imageURL
+                            }
                         },
                         onShare: {
-                            shareRoast(session.roastText)
+                            if session.source == .image {
+                                if let imageURL = session.imageURL {
+                                    // Use ImageRoastViewModel specifically for its robust image sharing
+                                    ImageRoastViewModel().shareImage(url: imageURL)
+                                }
+                            } else {
+                                shareRoast(session.roastText)
+                            }
                         }
                     )
                 }

@@ -272,17 +272,14 @@ struct ImageRoastView: View {
                 Spacer()
                 
                 // Share Button
-                if let urlString = imageURL, let url = URL(string: urlString) {
-                    ShareLink(item: url) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 18))
-                            .foregroundColor(DesignSystem.Colors.accentCyan)
-                    }
-                } else {
+                Button(action: {
+                    viewModel.shareImage(url: imageURL)
+                }) {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 18))
-                        .foregroundColor(DesignSystem.Colors.textSecondary)
+                        .foregroundColor(imageURL != nil ? DesignSystem.Colors.accentCyan : DesignSystem.Colors.textSecondary)
                 }
+                .disabled(imageURL == nil)
             }
             .padding(.horizontal, DesignSystem.Spacing.md)
             .padding(.vertical, DesignSystem.Spacing.sm)
@@ -428,6 +425,8 @@ struct ImageRoastView: View {
                 
                 // Send Button
                 Button(action: {
+                    isInputFocused = false
+                    
                     // Check if user can generate image roast
                     if !usageManager.canGenerateImageRoast(isPremium: subscriptionManager.isPremium) {
                         showPaywall = true
@@ -540,6 +539,59 @@ class ImageRoastViewModel: ObservableObject {
                 Task { await handlePhotoSelection() }
             }
         }
+    }
+    
+    var onFirstRoast: (() -> Void)?
+    
+    func shareImage(url: String?) {
+        guard let urlString = url, let url = URL(string: urlString) else { return }
+        
+        Task {
+            do {
+                let data: Data
+                if url.isFileURL {
+                    data = try Data(contentsOf: url)
+                } else {
+                    let (downloadedData, _) = try await URLSession.shared.data(from: url)
+                    data = downloadedData
+                }
+                
+                guard let image = UIImage(data: data) else { return }
+                
+                // Save to temporary file to ensure it's shared as a file, not just data/metadata
+                let fileName = "roasted_\(UUID().uuidString.prefix(8)).png"
+                let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+                try data.write(to: tempURL)
+                
+                await MainActor.run {
+                    self.presentShareSheet(with: tempURL)
+                }
+            } catch {
+                print("❌ Failed to load image for sharing: \(error)")
+            }
+        }
+    }
+    
+    private func presentShareSheet(with fileURL: URL) {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let window = scene.windows.first,
+              let rootVC = window.rootViewController else {
+            return
+        }
+        
+        let activityVC = UIActivityViewController(
+            activityItems: [fileURL],
+            applicationActivities: nil
+        )
+        
+        // For iPad
+        if let popover = activityVC.popoverPresentationController {
+            popover.sourceView = window
+            popover.sourceRect = CGRect(x: window.bounds.midX, y: window.bounds.midY, width: 0, height: 0)
+            popover.permittedArrowDirections = []
+        }
+        
+        rootVC.present(activityVC, animated: true)
     }
     
     private let storageManager = StorageManager()
