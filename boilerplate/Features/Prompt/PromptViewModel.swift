@@ -34,6 +34,18 @@ class PromptViewModel: ObservableObject {
         messages.append(userMessage)
         
         let prompt = inputText
+        
+        // --- SAFETY CHECK ---
+        do {
+            try SafetyManager.shared.validateInput(prompt)
+        } catch {
+            // TODO: Better error handling/UI for this
+            print("⚠️ Safety violation: \(error.localizedDescription)")
+            isStreaming = false
+            return
+        }
+        // --------------------
+
         inputText = ""
         let attachments = selectedMedia
         selectedMedia = []
@@ -81,6 +93,18 @@ class PromptViewModel: ObservableObject {
         messages.append(userMessage)
         
         let prompt = inputText
+        
+        // --- SAFETY CHECK ---
+        do {
+            try SafetyManager.shared.validateInput(prompt)
+        } catch {
+            // TODO: Better error handling/UI for this
+            print("⚠️ Safety violation: \(error.localizedDescription)")
+            isStreaming = false
+            return
+        }
+        // --------------------
+
         inputText = ""
         isStreaming = true
         

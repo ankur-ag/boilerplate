@@ -117,6 +117,17 @@ class HomeViewModel: ObservableObject {
         error = nil
         
         let inputForRoast = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // --- SAFETY CHECK ---
+        do {
+            try SafetyManager.shared.validateInput(inputForRoast)
+        } catch {
+            self.error = error
+            self.isGenerating = false
+            return
+        }
+        // --------------------
+
         submittedInput = inputForRoast
         
         // Capture intensities for display

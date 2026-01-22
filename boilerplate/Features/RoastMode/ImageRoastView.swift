@@ -691,6 +691,17 @@ class ImageRoastViewModel: ObservableObject {
         error = nil
         
         let inputForRoast = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // --- SAFETY CHECK ---
+        do {
+            try SafetyManager.shared.validateInput(inputForRoast)
+        } catch {
+            self.error = error
+            self.isGenerating = false
+            return
+        }
+        // --------------------
+
         submittedInput = inputForRoast
         
         // Prepare image data if available
