@@ -28,6 +28,7 @@ extension View {
         alert("Error", isPresented: .constant(error.wrappedValue != nil)) {
             Button("OK") {
                 error.wrappedValue = nil
+            }
         } message: {
             if let error = error.wrappedValue {
                 Text(error.localizedDescription)
