@@ -257,8 +257,8 @@ struct TailorView: View {
                 // Content
                 ScrollView {
                     VStack(alignment: .leading, spacing: DesignSystem.Spacing.xxl) {
-                        // Sport Selection
-                        sportSelectionSection
+                        // Sport Selection (Defaulted to NBA, hidden)
+                        // sportSelectionSection
                         
                         // My Team Selection
                         myTeamSection

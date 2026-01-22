@@ -105,7 +105,7 @@ class OnboardingViewModel: ObservableObject {
 
 @MainActor
 class TailorViewModel: ObservableObject {
-    @Published var selectedSport: SportType = .nba
+    @Published var selectedSport: SportType = .nba // Defaulting to NBA, UI selection hidden
     @Published var myTeam: SportsTeam?
     @Published var rivalTeams: [SportsTeam] = []
     @Published var selectedIntensity: RoastIntensity = .posterized
