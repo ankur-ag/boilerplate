@@ -176,18 +176,54 @@ struct LLMMessage: Codable, Identifiable {
     let role: MessageRole
     let content: String
     let timestamp: Date
+    let attachments: [LLMAttachment]
+    
+    var hasImages: Bool {
+        attachments.contains { $0.type == .image }
+    }
     
     init(
         id: String = UUID().uuidString,
         role: MessageRole,
         content: String,
+        attachments: [LLMAttachment] = [],
         timestamp: Date = Date()
     ) {
         self.id = id
         self.role = role
         self.content = content
+        self.attachments = attachments
         self.timestamp = timestamp
     }
+}
+
+struct LLMAttachment: Codable, Identifiable {
+    let id: String
+    let type: AttachmentType
+    let url: URL?
+    let base64Data: String?
+    let mimeType: String
+    
+    init(
+        id: String = UUID().uuidString,
+        type: AttachmentType,
+        url: URL? = nil,
+        base64Data: String? = nil,
+        mimeType: String
+    ) {
+        self.id = id
+        self.type = type
+        self.url = url
+        self.base64Data = base64Data
+        self.mimeType = mimeType
+    }
+}
+
+enum AttachmentType: String, Codable {
+    case image
+    case audio
+    case video
+    case file
 }
 
 enum MessageRole: String, Codable {
