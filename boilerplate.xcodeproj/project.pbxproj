@@ -308,6 +308,8 @@
 				DEVELOPMENT_TEAM = 39BJ68ZRUU;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = boilerplate/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Posterized;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -337,6 +339,8 @@
 				DEVELOPMENT_TEAM = 39BJ68ZRUU;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = boilerplate/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Posterized;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
