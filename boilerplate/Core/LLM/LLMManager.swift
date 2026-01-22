@@ -38,6 +38,11 @@ class LLMManager: ObservableObject {
         print("✅ LLMManager configured with service: \(type(of: service))")
     }
     
+    /// Add a service (alias for configure for single-service architecture)
+    func addService(_ service: LLMServiceProtocol) {
+        configure(with: service)
+    }
+    
     var isConfigured: Bool {
         llmService != nil
     }
