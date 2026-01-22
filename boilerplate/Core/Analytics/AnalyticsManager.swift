@@ -52,7 +52,7 @@ class FirebaseAnalyticsProvider: AnalyticsProvider {
 
 /// Centralized analytics manager
 /// Supports multiple analytics providers simultaneously
-class AnalyticsManager {
+class AnalyticsManager: ObservableObject {
     // MARK: - Properties
     
     private var providers: [AnalyticsProvider] = []
