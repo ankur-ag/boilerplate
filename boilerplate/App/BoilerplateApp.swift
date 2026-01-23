@@ -7,6 +7,7 @@
 
 import SwiftUI
 import FirebaseCore
+import RevenueCat
 
 @main
 struct BoilerplateApp: App {
@@ -63,6 +64,11 @@ struct BoilerplateApp: App {
         // Initialize Firebase
         FirebaseApp.configure()
         print("✅ Firebase configured")
+        
+        // Initialize RevenueCat
+        Purchases.logLevel = .debug
+        Purchases.configure(withAPIKey: "test_DtFJeDcDURuYslDVfFEodZCxYAo")
+        print("✅ RevenueCat configured")
     }
     
     var body: some Scene {

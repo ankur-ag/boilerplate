@@ -8,6 +8,7 @@
 
 import SwiftUI
 import StoreKit
+import RevenueCat
 
 struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
@@ -344,7 +345,7 @@ class PaywallViewModel: ObservableObject {
     
     private var subscriptionManager: SubscriptionManager?
     private var analyticsManager: AnalyticsManager?
-    private var storeKitProducts: [Product] = []
+    private var packages: [Package] = []
     
     func setSubscriptionManager(_ manager: SubscriptionManager) {
         self.subscriptionManager = manager
@@ -360,67 +361,72 @@ class PaywallViewModel: ObservableObject {
             return
         }
         
-        print("📦 PaywallViewModel: Loading products...")
+        print("📦 PaywallViewModel: Loading products from RevenueCat...")
         
-        // Load products from StoreKit
+        // Load offerings through SubscriptionManager
         await manager.loadProducts()
         
-        // Get available products
-        storeKitProducts = manager.availableProducts
-        print("📦 PaywallViewModel: Received \(storeKitProducts.count) products from SubscriptionManager")
+        // Get available packages
+        packages = manager.availablePackages
+        print("📦 PaywallViewModel: Received \(packages.count) packages from SubscriptionManager")
         
-        if storeKitProducts.isEmpty {
-            print("⚠️ PaywallViewModel: No products available!")
-            print("⚠️ Make sure:")
-            print("   1. StoreKit Configuration file is selected in scheme")
-            print("   2. Products match: \(ProductIdentifier.allProducts)")
+        if packages.isEmpty {
+            print("⚠️ PaywallViewModel: No packages available!")
             return
         }
         
-        // Map StoreKit products to display plans
-        plans = storeKitProducts.compactMap { product in
-            print("  📱 Mapping product: \(product.id) - \(product.displayName) - \(product.displayPrice)")
-            // Determine display info based on product ID
+        // Map RevenueCat packages to display plans
+        plans = packages.compactMap { package in
+            let product = package.storeProduct
+            print("  📱 Mapping package: \(package.identifier) - \(product.localizedTitle) - \(product.localizedPriceString)")
+            
+            // Determine display info based on package type or product ID
             let period: String
             let discount: Int?
-            var name = product.displayName
+            var name = product.localizedTitle
             
-            switch product.id {
-            case ProductIdentifier.annual:
+            switch package.packageType {
+            case .annual:
                 period = "/ year"
                 discount = 20
                 name = "Annual"
-            case ProductIdentifier.monthly:
+            case .monthly:
                 period = "/ month"
                 discount = nil
                 name = "Monthly"
-            case ProductIdentifier.weekly:
+            case .weekly:
                 period = "/ week"
                 discount = nil
                 name = "Weekly"
-            case ProductIdentifier.lifetime:
+            case .lifetime:
                 period = "one-time"
                 discount = nil
                 name = "Lifetime"
+            case .custom:
+                period = ""
+                discount = nil
             default:
                 period = ""
                 discount = nil
             }
             
             return SubscriptionPlan(
-                id: product.id,
+                id: package.identifier,
                 name: name,
-                price: product.displayPrice,
+                price: product.localizedPriceString,
                 period: period,
                 discount: discount,
-                product: product
+                package: package
             )
         }
         .sorted { plan1, plan2 in
             // Sort order: Annual, Monthly, Weekly, Lifetime
-            let order = [ProductIdentifier.annual, ProductIdentifier.monthly, ProductIdentifier.weekly, ProductIdentifier.lifetime]
-            let index1 = order.firstIndex(of: plan1.id) ?? 999
-            let index2 = order.firstIndex(of: plan2.id) ?? 999
+            let order: [PackageType] = [.annual, .monthly, .weekly, .lifetime]
+            let type1 = plan1.package?.packageType ?? .unknown
+            let type2 = plan2.package?.packageType ?? .unknown
+            
+            let index1 = order.firstIndex(of: type1) ?? 999
+            let index2 = order.firstIndex(of: type2) ?? 999
             return index1 < index2
         }
         
@@ -437,28 +443,31 @@ class PaywallViewModel: ObservableObject {
         
         let selectedPlan = plans[selectedPlanIndex]
         
-        // Get the StoreKit product
-        guard let product = selectedPlan.product else {
-            print("❌ No StoreKit product for plan: \(selectedPlan.name)")
+        // Get the package
+        guard let package = selectedPlan.package else {
+            print("❌ No package for plan: \(selectedPlan.name)")
             return
         }
         
         isProcessing = true
         
         // Log purchase start
-        analyticsManager?.logEvent(.purchaseStarted(productId: product.id))
+        analyticsManager?.logEvent(.purchaseStarted(productId: package.storeProduct.productIdentifier))
         
         Task {
             do {
                 // Attempt purchase through SubscriptionManager
-                try await manager.purchase(product)
+                try await manager.purchase(package)
                 
                 // Log successful purchase
-                analyticsManager?.logEvent(.purchaseCompleted(productId: product.id, price: product.displayPrice))
+                analyticsManager?.logEvent(.purchaseCompleted(
+                    productId: package.storeProduct.productIdentifier,
+                    price: package.storeProduct.localizedPriceString
+                ))
                 
                 // Show success
                 showSuccessAlert = true
-                print("✅ Purchase completed: \(product.displayName)")
+                print("✅ Purchase completed: \(package.storeProduct.localizedTitle)")
                 
             } catch {
                 // Log failed purchase
@@ -507,15 +516,15 @@ struct SubscriptionPlan: Identifiable {
     let price: String
     let period: String
     let discount: Int?
-    let product: Product? // StoreKit product for actual purchase
+    let package: Package? // RevenueCat package for actual purchase
     
-    init(id: String, name: String, price: String, period: String, discount: Int?, product: Product? = nil) {
+    init(id: String, name: String, price: String, period: String, discount: Int?, package: Package? = nil) {
         self.id = id
         self.name = name
         self.price = price
         self.period = period
         self.discount = discount
-        self.product = product
+        self.package = package
     }
 }
 

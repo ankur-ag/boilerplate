@@ -298,16 +298,7 @@ struct ImageRoastView: View {
             
             VStack(spacing: DesignSystem.Spacing.md) {
                 // Animated Roast Icon
-                ZStack {
-                    Circle()
-                        .stroke(DesignSystem.Colors.primaryOrange.opacity(0.3), lineWidth: 4)
-                        .frame(width: 60, height: 60)
-                    
-                    Image(systemName: "flame.fill")
-                        .font(.system(size: 30))
-                        .foregroundColor(DesignSystem.Colors.primaryOrange)
-                        .symbolEffect(.pulse)
-                }
+                RoastLoadingIcon(size: 60)
                 
                 VStack(spacing: 4) {
                     Text(intensity == .posterized ? "COOKING SAVAGE ROAST..." : "DUNKING ON 'EM...")
@@ -1044,6 +1035,35 @@ extension RoastIntensity {
         case .posterized: return .posterized
         case .dunkedOn: return .dunkedOn
         case .trashTalk: return .trashTalk
+        }
+    }
+}
+
+// MARK: - Components
+
+private struct RoastLoadingIcon: View {
+    let size: CGFloat
+    @State private var isAnimating = false
+    
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(DesignSystem.Colors.primaryOrange.opacity(0.3), lineWidth: size / 15)
+                .frame(width: size, height: size)
+            
+            Image(systemName: "flame.fill")
+                .font(.system(size: size / 2))
+                .foregroundColor(DesignSystem.Colors.primaryOrange)
+                .scaleEffect(isAnimating ? 1.2 : 0.9)
+                .opacity(isAnimating ? 1.0 : 0.7)
+                .animation(
+                    .easeInOut(duration: 0.8)
+                    .repeatForever(autoreverses: true),
+                    value: isAnimating
+                )
+        }
+        .onAppear {
+            isAnimating = true
         }
     }
 }

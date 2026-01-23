@@ -58,7 +58,7 @@ struct HomeView: View {
                     .padding(.bottom, 180) // Space for bottom input + regenerate
                     .animation(.easeInOut(duration: 0.4), value: viewModel.hasOutput)
                 }
-                .onChange(of: viewModel.hasOutput) { _, newValue in
+                .onChange(of: viewModel.hasOutput) { newValue in
                     if newValue { isInputFocused = false }
                 }
                 .onAppear {
@@ -241,16 +241,7 @@ struct HomeView: View {
     private func roastingLoadingView(intensity: RoastIntensity) -> some View {
         HStack(spacing: DesignSystem.Spacing.md) {
             // Animated Roast Icon
-            ZStack {
-                Circle()
-                    .stroke(DesignSystem.Colors.primaryOrange.opacity(0.3), lineWidth: 2)
-                    .frame(width: 40, height: 40)
-                
-                Image(systemName: "flame.fill")
-                    .font(.system(size: 20))
-                    .foregroundColor(DesignSystem.Colors.primaryOrange)
-                    .symbolEffect(.pulse)
-            }
+            RoastLoadingIcon()
             
             VStack(alignment: .leading, spacing: 2) {
                 Text(intensity == .posterized ? "COOKING SAVAGE ROAST..." : "DUNKING ON 'EM...")
@@ -408,6 +399,34 @@ struct HomeView: View {
         )
         .sheet(isPresented: $showPaywall) {
             PaywallView()
+        }
+    }
+}
+
+// MARK: - Components
+
+private struct RoastLoadingIcon: View {
+    @State private var isAnimating = false
+    
+    var body: some View {
+        ZStack {
+            Circle()
+                .stroke(DesignSystem.Colors.primaryOrange.opacity(0.3), lineWidth: 2)
+                .frame(width: 40, height: 40)
+            
+            Image(systemName: "flame.fill")
+                .font(.system(size: 20))
+                .foregroundColor(DesignSystem.Colors.primaryOrange)
+                .scaleEffect(isAnimating ? 1.2 : 0.9)
+                .opacity(isAnimating ? 1.0 : 0.7)
+                .animation(
+                    .easeInOut(duration: 0.8)
+                    .repeatForever(autoreverses: true),
+                    value: isAnimating
+                )
+        }
+        .onAppear {
+            isAnimating = true
         }
     }
 }

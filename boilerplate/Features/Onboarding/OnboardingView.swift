@@ -217,7 +217,7 @@ struct OnboardingView: View {
             .onAppear {
                 analyticsManager.logEvent(.onboardingStarted)
             }
-            .onChange(of: viewModel.agreedToTerms) { _, agreed in
+            .onChange(of: viewModel.agreedToTerms) { agreed in
                 if agreed {
                     analyticsManager.logEvent(.termsAgreed)
                 }

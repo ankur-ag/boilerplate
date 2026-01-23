@@ -10,6 +10,8 @@
 		92CF19642F14CD83005E579B /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 92CF19632F14CD83005E579B /* FirebaseAuth */; };
 		92CF19662F14CD83005E579B /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 92CF19652F14CD83005E579B /* FirebaseFirestore */; };
 		92CF19682F14CD83005E579B /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 92CF19672F14CD83005E579B /* FirebaseStorage */; };
+		92D5A54C2F2318E900226001 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = 92D5A54B2F2318E900226001 /* RevenueCat */; };
+		92D5A54E2F2318E900226001 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 92D5A54D2F2318E900226001 /* RevenueCatUI */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -71,8 +73,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				92D5A54C2F2318E900226001 /* RevenueCat in Frameworks */,
 				92CF19642F14CD83005E579B /* FirebaseAuth in Frameworks */,
 				92CF19662F14CD83005E579B /* FirebaseFirestore in Frameworks */,
+				92D5A54E2F2318E900226001 /* RevenueCatUI in Frameworks */,
 				92CF19682F14CD83005E579B /* FirebaseStorage in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -137,6 +141,8 @@
 				92CF19632F14CD83005E579B /* FirebaseAuth */,
 				92CF19652F14CD83005E579B /* FirebaseFirestore */,
 				92CF19672F14CD83005E579B /* FirebaseStorage */,
+				92D5A54B2F2318E900226001 /* RevenueCat */,
+				92D5A54D2F2318E900226001 /* RevenueCatUI */,
 			);
 			productName = boilerplate;
 			productReference = 92CF18BD2F148F0D005E579B /* boilerplate.app */;
@@ -222,6 +228,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				92CF19622F14CD83005E579B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				92D5A54A2F2318E900226001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 92CF18BE2F148F0D005E579B /* Products */;
@@ -310,17 +317,21 @@
 				INFOPLIST_FILE = boilerplate/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Posterized;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We need access to your camera to take photos for your AI conversations.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We need access to save photos to your library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "We need access to your photo library to select images for your AI conversations.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = hyre.boilerplate;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyre.posterized;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -341,17 +352,21 @@
 				INFOPLIST_FILE = boilerplate/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Posterized;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.entertainment";
+				INFOPLIST_KEY_NSCameraUsageDescription = "We need access to your camera to take photos for your AI conversations.";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "We need access to save photos to your library.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "We need access to your photo library to select images for your AI conversations.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.6;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = hyre.boilerplate;
+				PRODUCT_BUNDLE_IDENTIFIER = com.hyre.posterized;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -600,6 +615,14 @@
 				minimumVersion = 12.7.0;
 			};
 		};
+		92D5A54A2F2318E900226001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.55.3;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -617,6 +640,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 92CF19622F14CD83005E579B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseStorage;
+		};
+		92D5A54B2F2318E900226001 /* RevenueCat */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 92D5A54A2F2318E900226001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCat;
+		};
+		92D5A54D2F2318E900226001 /* RevenueCatUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 92D5A54A2F2318E900226001 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
+			productName = RevenueCatUI;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -8,31 +8,39 @@
 import Foundation
 import SwiftUI
 import StoreKit
+import RevenueCat
 
 /// Manages in-app purchases and subscription state
 /// Entitlements-based approach for multi-platform support
 @MainActor
-class SubscriptionManager: ObservableObject {
+class SubscriptionManager: NSObject, ObservableObject {
     // MARK: - Published Properties
     
     @Published private(set) var subscriptionStatus: SubscriptionStatus = .free
     @Published private(set) var entitlements: Set<Entitlement> = []
-    @Published private(set) var availableProducts: [Product] = []
+    @Published private(set) var availablePackages: [Package] = []
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var error: SubscriptionError?
     
     // MARK: - Private Properties
     
-    private var updateListenerTask: Task<Void, Error>?
+    // RevenueCat listener for customer info updates
+    private var customerInfoUpdateListener: Any?
     
     // MARK: - Initialization
     
-    init() {
-        updateListenerTask = listenForTransactions()
+    override init() {
+        super.init()
+        configureRevenueCat()
     }
     
-    deinit {
-        updateListenerTask?.cancel()
+    private func configureRevenueCat() {
+        Purchases.shared.delegate = self
+        
+        // Initial check
+        Task {
+            await checkSubscriptionStatus()
+        }
     }
     
     // MARK: - Product Loading
@@ -42,19 +50,20 @@ class SubscriptionManager: ObservableObject {
         error = nil
         
         do {
-            // Load products from StoreKit using actual product IDs
-            availableProducts = try await Product.products(for: ProductIdentifier.allProducts)
+            let offerings = try await Purchases.shared.offerings()
             
-            print("✅ Loaded \(availableProducts.count) products from StoreKit")
-            for product in availableProducts {
-                print("  - \(product.displayName): \(product.displayPrice)")
+            if let currentOffering = offerings.current {
+                self.availablePackages = currentOffering.availablePackages
+                print("✅ Loaded \(availablePackages.count) packages from RevenueCat")
+            } else {
+                print("⚠️ No current offering found in RevenueCat")
             }
             
             // Check current entitlements
             await checkSubscriptionStatus()
             
         } catch {
-            print("❌ Failed to load products: \(error)")
+            print("❌ Failed to load offerings: \(error)")
             self.error = .productLoadFailed(error.localizedDescription)
         }
         
@@ -63,7 +72,7 @@ class SubscriptionManager: ObservableObject {
     
     // MARK: - Purchase Methods
     
-    func purchase(_ product: Product) async throws {
+    func purchase(_ package: Package) async throws {
         isLoading = true
         error = nil
         
@@ -72,37 +81,24 @@ class SubscriptionManager: ObservableObject {
         }
         
         do {
-            // Attempt purchase
-            let result = try await product.purchase()
+            let result = try await Purchases.shared.purchase(package: package)
             
-            switch result {
-            case .success(let verification):
-                // Verify transaction
-                let transaction = try checkVerified(verification)
-                
-                // Update user entitlements
-                await updateEntitlements(for: transaction)
-                
-                // Finish the transaction
-                await transaction.finish()
-                
-                print("✅ Purchase successful: \(product.displayName)")
-                
-            case .userCancelled:
+            if result.userCancelled {
                 print("ℹ️ User cancelled purchase")
                 throw SubscriptionError.purchaseCancelled
-                
-            case .pending:
-                print("⏳ Purchase pending approval")
-                throw SubscriptionError.purchasePending
-                
-            @unknown default:
-                print("❌ Unknown purchase result")
-                throw SubscriptionError.unknownError
             }
             
+            // Update status with new customer info
+            await updateStatus(with: result.customerInfo)
+            
+            print("✅ Purchase successful: \(package.storeProduct.localizedTitle)")
+            
         } catch {
-            let subError = error as? SubscriptionError ?? .purchaseFailed(error.localizedDescription)
+            if let subError = error as? SubscriptionError {
+                throw subError
+            }
+            
+            let subError = SubscriptionError.purchaseFailed(error.localizedDescription)
             self.error = subError
             throw subError
         }
@@ -113,12 +109,8 @@ class SubscriptionManager: ObservableObject {
         error = nil
         
         do {
-            // Sync with App Store to restore purchases
-            try await AppStore.sync()
-            
-            // Check subscription status after sync
-            await checkSubscriptionStatus()
-            
+            let customerInfo = try await Purchases.shared.restorePurchases()
+            await updateStatus(with: customerInfo)
             print("✅ Purchases restored successfully")
             
         } catch {
@@ -153,124 +145,39 @@ class SubscriptionManager: ObservableObject {
     
     /// Check and update subscription status based on current entitlements
     private func checkSubscriptionStatus() async {
-        var hasActiveSubscription = false
-        var activeTier: SubscriptionTier?
-        
-        // Check for active subscriptions
-        for await result in StoreKit.Transaction.currentEntitlements {
-            guard case .verified(let transaction) = result else {
-                continue
-            }
-            
-            // Check if transaction is for one of our products
-            if let tier = ProductTier(productId: transaction.productID) {
-                hasActiveSubscription = true
-                
-                // Determine subscription tier
-                switch tier {
-                case .lifetime:
-                    activeTier = .lifetime
-                case .annual:
-                    activeTier = .annual
-                case .monthly:
-                    activeTier = .monthly
-                case .weekly:
-                    activeTier = .premium // Map weekly to premium
-                }
-                
-                print("✅ Active subscription found: \(tier.displayName)")
-                break
-            }
+        do {
+            let customerInfo = try await Purchases.shared.customerInfo()
+            await updateStatus(with: customerInfo)
+        } catch {
+            print("❌ Failed to fetch customer info: \(error)")
         }
+    }
+    
+    private func updateStatus(with customerInfo: CustomerInfo) async {
+        // Define our entitlement ID (should match RevenueCat dashboard)
+        let entitlementID = "premium"
         
-        // Update subscription status
-        if hasActiveSubscription, let tier = activeTier {
-            subscriptionStatus = .subscribed(tier: tier)
+        if let entitlement = customerInfo.entitlements[entitlementID], entitlement.isActive {
+            // User has active premium entitlement
+            subscriptionStatus = .subscribed(tier: .premium)
             entitlements = [
                 .basicFeatures,
                 .unlimitedMessages,
+                .unlimitedTextRoasts,
+                .unlimitedImageRoasts,
                 .prioritySupport,
                 .advancedModels,
                 .offlineMode,
                 .customization
             ]
+            print("✅ Premium entitlement is active")
         } else {
             subscriptionStatus = .free
             entitlements = [.basicFeatures]
+            print("ℹ️ No active premium entitlement")
         }
     }
     
-    /// Update entitlements after a purchase
-    private func updateEntitlements(for transaction: StoreKit.Transaction) async {
-        guard let tier = ProductTier(productId: transaction.productID) else {
-            print("⚠️ Unknown product: \(transaction.productID)")
-            return
-        }
-        
-        // Map product tier to subscription tier
-        let subscriptionTier: SubscriptionTier
-        switch tier {
-        case .lifetime:
-            subscriptionTier = .lifetime
-        case .annual:
-            subscriptionTier = .annual
-        case .monthly:
-            subscriptionTier = .monthly
-        case .weekly:
-            subscriptionTier = .premium
-        }
-        
-        // Update status
-        subscriptionStatus = .subscribed(tier: subscriptionTier)
-        entitlements = [
-            .basicFeatures,
-            .unlimitedMessages,
-            .prioritySupport,
-            .advancedModels,
-            .offlineMode,
-            .customization
-        ]
-        
-        print("✅ Entitlements updated for: \(tier.displayName)")
-    }
-    
-    /// Verify transaction to prevent fraud
-    private func checkVerified<T>(_ result: StoreKit.VerificationResult<T>) throws -> T {
-        switch result {
-        case .unverified:
-            // Transaction failed verification
-            throw SubscriptionError.verificationFailed
-        case .verified(let safe):
-            // Transaction is verified
-            return safe
-        }
-    }
-    
-    private func listenForTransactions() -> Task<Void, Error> {
-        return Task.detached { @MainActor [weak self] in
-            // Listen for transaction updates
-            for await result in StoreKit.Transaction.updates {
-                await self?.handleTransaction(result)
-            }
-        }
-    }
-    
-    private func handleTransaction(_ result: StoreKit.VerificationResult<StoreKit.Transaction>) async {
-        do {
-            let transaction = try checkVerified(result)
-            
-            // Update entitlements based on transaction
-            await updateEntitlements(for: transaction)
-            
-            // Always finish a transaction
-            await transaction.finish()
-            
-            print("✅ Transaction processed: \(transaction.productID)")
-            
-        } catch {
-            print("❌ Transaction verification failed: \(error)")
-        }
-    }
     
     // MARK: - Public Update Method (for testing/development)
     
@@ -297,9 +204,16 @@ class SubscriptionManager: ObservableObject {
         case .expired, .cancelled:
             entitlements = [.basicFeatures]
         }
-        
-        // TODO: In production, sync with backend
-        // await syncSubscriptionStatusWithBackend(status)
+    }
+}
+
+// MARK: - PurchasesDelegate
+
+extension SubscriptionManager: PurchasesDelegate {
+    func purchases(_ purchases: Purchases, receivedUpdated customerInfo: CustomerInfo) {
+        Task {
+            await updateStatus(with: customerInfo)
+        }
     }
 }
 

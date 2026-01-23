@@ -28,7 +28,7 @@ struct StreamingTextView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .center)
                 .padding()
-                .onChange(of: text) { _, _ in
+                .onChange(of: text) { _ in
                     withAnimation {
                         proxy.scrollTo("streamingText", anchor: .bottom)
                     }
@@ -40,7 +40,7 @@ struct StreamingTextView: View {
                 startCursorAnimation()
             }
         }
-        .onChange(of: isStreaming) { _, streaming in
+        .onChange(of: isStreaming) { streaming in
             if streaming {
                 startCursorAnimation()
             }
