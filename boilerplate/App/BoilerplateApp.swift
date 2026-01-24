@@ -32,26 +32,28 @@ struct BoilerplateApp: App {
     
     init() {
         // 1. Initialize Firebase
-        // Ensure GoogleService-Info.plist is added to your project member target
         FirebaseApp.configure()
         print("✅ Firebase initialized")
         
         // 2. Initialize RevenueCat
         Purchases.logLevel = .debug
-        let prodKey = ProcessInfo.processInfo.environment["REVENUECAT_API_KEY"]
-        let testKey = ProcessInfo.processInfo.environment["REVENUECAT_TEST_KEY"] ?? "test_DtFJeDcDURuYslDVfFEodZCxYAo"
         
-        let revenueCatKey = (prodKey ?? testKey).trimmingCharacters(in: .whitespacesAndNewlines)
+        // Environment variables only work in local debug schemes.
+        // For TestFlight, we use the hardcoded fallback.
+        let prodKey = ProcessInfo.processInfo.environment["REVENUECAT_API_KEY"]
+        let testKey = ProcessInfo.processInfo.environment["REVENUECAT_TEST_KEY"]
+        let fallbackKey = "test_DtFJeDcDURuYslDVfFEodZCxYAo" // Use your PROD key here for TestFlight
+        
+        let revenueCatKey = (prodKey ?? testKey ?? fallbackKey).trimmingCharacters(in: .whitespacesAndNewlines)
         
         if !revenueCatKey.isEmpty {
             Purchases.configure(withAPIKey: revenueCatKey)
-            let keyType = prodKey != nil ? "PRODUCTION KEY" : "TEST KEY"
-            print("✅ RevenueCat configured (\(keyType))")
+            print("✅ RevenueCat configured with: \(prodKey != nil ? "Production Key (Scheme)" : (testKey != nil ? "Test Key (Scheme)" : "Bundled/Fallback Key"))")
             
-            // Safe to initialize manager now that SDK is configured
+            // Safe to initialize manager now
             subscriptionManager.initialize()
         } else {
-            print("⚠️ RevenueCat API Key missing")
+            print("❌ RevenueCat API Key missing - App may crash if subscription features are accessed")
         }
     }
     
