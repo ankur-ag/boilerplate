@@ -6,7 +6,7 @@
 //
 
 import SwiftUI
-import StoreKit
+import RevenueCat
 
 struct PaywallView: View {
     @StateObject private var viewModel = PaywallViewModel()
@@ -80,15 +80,25 @@ struct PaywallView: View {
             if subscriptionManager.isLoading {
                 ProgressView()
                     .padding()
+            } else if subscriptionManager.availablePackages.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.title)
+                        .foregroundColor(.yellow)
+                    Text("RevenueCat products not loaded.\nCheck dashboard or API key.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding()
             } else {
-                ForEach(subscriptionManager.availableProducts, id: \.id) { product in
-                    ProductCard(product: product, isSelected: viewModel.selectedProduct?.id == product.id) {
-                        viewModel.selectedProduct = product
+                ForEach(subscriptionManager.availablePackages, id: \.identifier) { package in
+                    PackageCard(package: package, isSelected: viewModel.selectedPackage?.identifier == package.identifier) {
+                        viewModel.selectedPackage = package
                     }
                 }
             }
         }
-    }
     
     private var ctaSection: some View {
         VStack(spacing: 12) {
@@ -111,7 +121,7 @@ struct PaywallView: View {
             .background(Color.accentColor)
             .foregroundColor(.white)
             .cornerRadius(12)
-            .disabled(viewModel.selectedProduct == nil || viewModel.isPurchasing)
+            .disabled(viewModel.selectedPackage == nil || viewModel.isPurchasing)
             
             Button("Restore Purchases") {
                 Task {
@@ -168,10 +178,10 @@ private struct FeatureRow: View {
     }
 }
 
-// MARK: - Product Card
+// MARK: - Package Card
 
-private struct ProductCard: View {
-    let product: Product
+private struct PackageCard: View {
+    let package: Package
     let isSelected: Bool
     let onTap: () -> Void
     
@@ -179,17 +189,17 @@ private struct ProductCard: View {
         Button(action: onTap) {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(product.displayName)
+                    Text(package.storeProduct.localizedTitle)
                         .font(.headline)
                     
-                    Text(product.description)
+                    Text(package.storeProduct.localizedDescription)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
                 
                 Spacer()
                 
-                Text(product.displayPrice)
+                Text(package.storeProduct.localizedPriceString)
                     .font(.title3)
                     .fontWeight(.semibold)
             }

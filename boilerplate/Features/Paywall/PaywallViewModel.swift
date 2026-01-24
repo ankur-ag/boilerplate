@@ -6,22 +6,22 @@
 //
 
 import Foundation
-import StoreKit
+import RevenueCat
 
 @MainActor
 class PaywallViewModel: ObservableObject {
-    @Published var selectedProduct: Product?
+    @Published var selectedPackage: Package?
     @Published var isPurchasing: Bool = false
     @Published var error: PaywallError?
     
     func purchaseSelected(using subscriptionManager: SubscriptionManager) async {
-        guard let product = selectedProduct else { return }
+        guard let package = selectedPackage else { return }
         
         isPurchasing = true
         error = nil
         
         do {
-            try await subscriptionManager.purchase(product)
+            try await subscriptionManager.purchase(package)
             // TODO: Dismiss paywall on success
             
         } catch {

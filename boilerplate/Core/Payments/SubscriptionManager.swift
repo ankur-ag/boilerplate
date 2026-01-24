@@ -25,6 +25,10 @@ class SubscriptionManager: NSObject, ObservableObject {
     
     override init() {
         super.init()
+    }
+    
+    /// Must be called AFTER Purchases.configure()
+    func initialize() {
         Purchases.shared.delegate = self
         Task {
             await checkSubscriptionStatus()

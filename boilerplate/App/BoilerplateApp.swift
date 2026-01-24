@@ -38,12 +38,20 @@ struct BoilerplateApp: App {
         
         // 2. Initialize RevenueCat
         Purchases.logLevel = .debug
-        let revenueCatKey = (ProcessInfo.processInfo.environment["REVENUECAT_API_KEY"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let prodKey = ProcessInfo.processInfo.environment["REVENUECAT_API_KEY"]
+        let testKey = ProcessInfo.processInfo.environment["REVENUECAT_TEST_KEY"] ?? "test_DtFJeDcDURuYslDVfFEodZCxYAo"
+        
+        let revenueCatKey = (prodKey ?? testKey).trimmingCharacters(in: .whitespacesAndNewlines)
+        
         if !revenueCatKey.isEmpty {
             Purchases.configure(withAPIKey: revenueCatKey)
-            print("✅ RevenueCat configured")
+            let keyType = prodKey != nil ? "PRODUCTION KEY" : "TEST KEY"
+            print("✅ RevenueCat configured (\(keyType))")
+            
+            // Safe to initialize manager now that SDK is configured
+            subscriptionManager.initialize()
         } else {
-            print("⚠️ RevenueCat API Key missing (Set REVENUECAT_API_KEY in Environment Variables)")
+            print("⚠️ RevenueCat API Key missing")
         }
     }
     
