@@ -17,5 +17,7 @@ xcshareddata/xcschemes/
 # Secrets and Config
 Config.swift
 GoogleService-Info.plist
+*.xcconfig
+Configurations/
 *.example
 !Config.swift.example
