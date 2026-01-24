@@ -37,55 +37,101 @@ struct PrivacyView: View {
                         
                         // Content
                         VStack(alignment: .leading, spacing: DesignSystem.Spacing.lg) {
-                            privacySection(
-                                title: "Introduction",
-                                content: "Welcome to Posterized. We respect your privacy and are committed to protecting your personal data. This privacy policy explains how we collect, use, and safeguard your information when you use our app."
-                            )
+                            Group {
+                                Text("1. Introduction")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                
+                                Text("Posterized is an AI roasting app operated by HYRE Talent Sourcing and Matching GmbH. We are committed to protecting your personal data and explaining how we use and process it.")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .lineSpacing(4)
+                                
+                                Text("2. Data We Collect")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                
+                                Text("**Account Information**\nWe collect pseudonymous identifiers, and if shared, email/name via Apple Sign-In.\n\n**Usage & Analytics**\nWe use Firebase to track in-app events, device data, and app interactions to improve our service.")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .lineSpacing(4)
+                                
+                                Text("**Roast Content & Media**\nWe store images and text inputs you provide, along with AI-generated outputs, in Firebase Storage and Firestore.")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .lineSpacing(4)
+                            }
                             
-                            privacySection(
-                                title: "Information We Collect",
-                                content: "We collect the following types of information:\n\n• Account Information: When you create an account, we collect your email address and authentication details.\n\n• Usage Data: We collect information about how you use the app, including roast generations, features accessed, and interaction patterns.\n\n• Device Information: We collect device type, operating system version, and unique device identifiers.\n\n• User Preferences: Your selected teams, roast intensity preferences, and app settings."
-                            )
+                            Group {
+                                Text("3. How We Use Your Data")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                
+                                Text("We use data to operate the app, generate AI roasts, analyze user experience, ensure safety/moderation, and comply with legal obligations.")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .lineSpacing(4)
+                                
+                                Text("4. Third-Party AI Processing")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                
+                                Text("**Google Gemini & OpenAI**\nWe send images and text to Google and OpenAI to generate roasts. Under our commercial configuration, this data is NOT used to train their models and is typically deleted after 30-60 days.")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .lineSpacing(4)
+                            }
                             
-                            privacySection(
-                                title: "How We Use Your Information",
-                                content: "We use your information to:\n\n• Provide and maintain our service\n• Generate AI-powered roasts based on your preferences\n• Improve and personalize your experience\n• Process subscriptions and payments\n• Send you updates and notifications (with your consent)\n• Analyze usage patterns to improve the app\n• Prevent fraud and ensure security"
-                            )
+                            Group {
+                                Text("5. Data Sharing")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                
+                                Text("We do NOT sell your personal data. We only share data with essential processors (Apple, Google, OpenAI) or when required by law.")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .lineSpacing(4)
+                                
+                                Text("6. International Transfers")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                
+                                Text("Data may be processed in countries outside your own, including the USA, subject to appropriate safeguards like Standard Contractual Clauses.")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .lineSpacing(4)
+                            }
                             
-                            privacySection(
-                                title: "Data Sharing and Disclosure",
-                                content: "We do not sell your personal data. We may share your information with:\n\n• Service Providers: We use Firebase for authentication and data storage, and OpenAI for AI roast generation.\n\n• Analytics Partners: We may use analytics services to understand app usage.\n\n• Legal Requirements: We may disclose information if required by law or to protect our rights."
-                            )
+                            Group {
+                                Text("7. Data Retention")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                
+                                Text("We keep identifying data as long as your account is active, but delete it within 30 days of closure or after 12 months of inactivity.")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .lineSpacing(4)
+                                
+                                Text("8. Your Rights")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                
+                                Text("Depending on your location (e.g. GDPR), you have rights to access, update, or delete your personal data. Contact us at privacy@hyretalents.com for requests.")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .lineSpacing(4)
+                            }
                             
-                            privacySection(
-                                title: "Your Roast Content",
-                                content: "Text and images you submit are processed by our AI service (OpenAI) to generate roasts. We do not permanently store your input text or images beyond what's necessary for the service. Generated roasts are stored in your account history."
-                            )
-                            
-                            privacySection(
-                                title: "Data Security",
-                                content: "We implement industry-standard security measures to protect your data, including encryption in transit and at rest. However, no method of transmission over the internet is 100% secure, and we cannot guarantee absolute security."
-                            )
-                            
-                            privacySection(
-                                title: "Your Rights",
-                                content: "You have the right to:\n\n• Access your personal data\n• Correct inaccurate data\n• Delete your account and data\n• Opt-out of marketing communications\n• Withdraw consent for data processing\n\nTo exercise these rights, contact us at privacy@posterized.app"
-                            )
-                            
-                            privacySection(
-                                title: "Children's Privacy",
-                                content: "Posterized is not intended for users under 13 years of age. We do not knowingly collect personal information from children under 13. If you believe we have collected such information, please contact us immediately."
-                            )
-                            
-                            privacySection(
-                                title: "Changes to This Policy",
-                                content: "We may update this privacy policy from time to time. We will notify you of any material changes by posting the new policy in the app and updating the \"Last updated\" date."
-                            )
-                            
-                            privacySection(
-                                title: "Contact Us",
-                                content: "If you have any questions about this Privacy Policy, please contact us at:\n\nprivacy@posterized.app\n\nOr write to us at:\nPosterized\n[Your Company Address]"
-                            )
+                            Group {
+                                Text("9. Contact Us")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(DesignSystem.Colors.textPrimary)
+                                
+                                Text("Privacy Enquiries: privacy@hyretalents.com\nHYRE Talent Sourcing and Matching GmbH\nWarnerweg 13, 14052 Berlin, Germany")
+                                    .font(.system(size: 15))
+                                    .foregroundColor(DesignSystem.Colors.textSecondary)
+                                    .lineSpacing(4)
+                            }
                         }
                     }
                     .padding(.horizontal, DesignSystem.Spacing.lg)
@@ -102,19 +148,6 @@ struct PrivacyView: View {
                     }
                 }
             }
-        }
-    }
-    
-    private func privacySection(title: String, content: String) -> some View {
-        VStack(alignment: .leading, spacing: DesignSystem.Spacing.sm) {
-            Text(title)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(DesignSystem.Colors.textPrimary)
-            
-            Text(content)
-                .font(.system(size: 15))
-                .foregroundColor(DesignSystem.Colors.textSecondary)
-                .lineSpacing(4)
         }
     }
 }
