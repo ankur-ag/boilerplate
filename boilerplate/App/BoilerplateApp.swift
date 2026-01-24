@@ -20,9 +20,8 @@ struct BoilerplateApp: App {
     @StateObject private var llmManager: LLMManager = {
         let manager = LLMManager()
         
-        // Load API keys from Environment Variables (set these in Xcode Scheme)
-        let openAIKey = (ProcessInfo.processInfo.environment["OPENAI_API_KEY"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
-        let geminiKey = (ProcessInfo.processInfo.environment["GEMINI_API_KEY"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        let openAIKey = SecretConfig.openAIAPIKey
+        let geminiKey = SecretConfig.geminiAPIKey
         
         // Placeholder for service configuration
         // if !openAIKey.isEmpty { manager.configure(with: OpenAIService(apiKey: openAIKey)) }
@@ -38,12 +37,11 @@ struct BoilerplateApp: App {
         // 2. Initialize RevenueCat
         Purchases.logLevel = .debug
         
-        // Use environment variable if available (local dev), otherwise fallback to the production key
-        let revenueCatKey = (ProcessInfo.processInfo.environment["REVENUECAT_API_KEY"] ?? "appl_tAGaGojvSDcCIzzbSzPgyJbikfm").trimmingCharacters(in: .whitespacesAndNewlines)
+        let revenueCatKey = SecretConfig.revenueCatAPIKey
         
         if !revenueCatKey.isEmpty {
             Purchases.configure(withAPIKey: revenueCatKey)
-            print("✅ RevenueCat configured with Production Key")
+            print("✅ RevenueCat configured")
             
             // Safe to initialize manager now
             subscriptionManager.initialize()
