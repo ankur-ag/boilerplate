@@ -1,4 +1,21 @@
-.xcuserdata
-.xcuserdatad
+*.xcuserdata
+*.xcuserdatad
 *.bak
-boilerplate/Core/Config/Config.swift
+
+# Xcode
+build/
+DerivedData/
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+
+# Schemes
+# Shared schemes with secrets MUST be ignored
+xcshareddata/xcschemes/
+*.xcscheme
+
+# Secrets and Config
+Config.swift
+GoogleService-Info.plist
+*.example
+!Config.swift.example
