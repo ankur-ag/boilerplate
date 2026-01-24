@@ -137,6 +137,10 @@ struct SettingsView: View {
             Button("Clear All Data", role: .destructive) {
                 viewModel.clearAllData()
             }
+            
+            Button("Test Crash", role: .destructive) {
+                fatalError("Crash was triggered for testing purposes")
+            }
         }
     }
     #endif
