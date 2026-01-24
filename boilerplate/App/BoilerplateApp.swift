@@ -38,17 +38,12 @@ struct BoilerplateApp: App {
         // 2. Initialize RevenueCat
         Purchases.logLevel = .debug
         
-        // Environment variables only work in local debug schemes.
-        // For TestFlight, we use the hardcoded fallback.
-        let prodKey = ProcessInfo.processInfo.environment["REVENUECAT_API_KEY"]
-        let testKey = ProcessInfo.processInfo.environment["REVENUECAT_TEST_KEY"]
-        let fallbackKey = "test_DtFJeDcDURuYslDVfFEodZCxYAo" // Use your PROD key here for TestFlight
-        
-        let revenueCatKey = (prodKey ?? testKey ?? fallbackKey).trimmingCharacters(in: .whitespacesAndNewlines)
+        // Use environment variable if available (local dev), otherwise fallback to the production key
+        let revenueCatKey = (ProcessInfo.processInfo.environment["REVENUECAT_API_KEY"] ?? "appl_tAGaGojvSDcCIzzbSzPgyJbikfm").trimmingCharacters(in: .whitespacesAndNewlines)
         
         if !revenueCatKey.isEmpty {
             Purchases.configure(withAPIKey: revenueCatKey)
-            print("✅ RevenueCat configured with: \(prodKey != nil ? "Production Key (Scheme)" : (testKey != nil ? "Test Key (Scheme)" : "Bundled/Fallback Key"))")
+            print("✅ RevenueCat configured with Production Key")
             
             // Safe to initialize manager now
             subscriptionManager.initialize()
