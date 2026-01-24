@@ -1,0 +1,4 @@
+.xcuserdata
+.xcuserdatad
+*.bak
+boilerplate/Core/Config/Config.swift

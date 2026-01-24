@@ -8,52 +8,41 @@
 import Foundation
 import SwiftUI
 import StoreKit
+import RevenueCat
 
-/// Manages in-app purchases and subscription state
-/// Entitlements-based approach for multi-platform support
+/// Manages in-app purchases and subscription state via RevenueCat
 @MainActor
-class SubscriptionManager: ObservableObject {
+class SubscriptionManager: NSObject, ObservableObject {
     // MARK: - Published Properties
     
     @Published private(set) var subscriptionStatus: SubscriptionStatus = .free
     @Published private(set) var entitlements: Set<Entitlement> = []
-    @Published private(set) var availableProducts: [Product] = []
+    @Published private(set) var availablePackages: [Package] = []
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var error: SubscriptionError?
     
-    // MARK: - Private Properties
-    
-    private var updateListenerTask: Task<Void, Error>?
-    
     // MARK: - Initialization
     
-    init() {
-        updateListenerTask = listenForTransactions()
+    override init() {
+        super.init()
+        Purchases.shared.delegate = self
+        Task {
+            await checkSubscriptionStatus()
+        }
     }
     
-    deinit {
-        updateListenerTask?.cancel()
-    }
-    
-    // MARK: - Product Loading
+    // MARK: - Offering Loading
     
     func loadProducts() async {
         isLoading = true
+        error = nil
         
         do {
-            // TODO: Replace with your actual product IDs
-            let productIds: Set<String> = [
-                "com.yourapp.monthly",
-                "com.yourapp.yearly",
-                "com.yourapp.lifetime"
-            ]
-            
-            // TODO: Load products from StoreKit 2
-            // availableProducts = try await Product.products(for: productIds)
-            
-            // Placeholder
-            availableProducts = []
-            
+            let offerings = try await Purchases.shared.offerings()
+            if let currentOffering = offerings.current {
+                self.availablePackages = currentOffering.availablePackages
+            }
+            await checkSubscriptionStatus()
         } catch {
             self.error = .productLoadFailed(error.localizedDescription)
         }
@@ -63,24 +52,20 @@ class SubscriptionManager: ObservableObject {
     
     // MARK: - Purchase Methods
     
-    func purchase(_ product: Product) async throws {
+    func purchase(_ package: Package) async throws {
         isLoading = true
+        error = nil
         
         defer {
             isLoading = false
         }
         
         do {
-            // TODO: Implement StoreKit 2 purchase flow
-            // let result = try await product.purchase()
-            // Handle transaction verification
-            
-            // TODO: Sync with backend
-            // await syncPurchaseWithBackend(transaction)
-            
-            // TODO: Update entitlements
-            await updateEntitlements()
-            
+            let result = try await Purchases.shared.purchase(package: package)
+            if result.userCancelled {
+                throw SubscriptionError.purchaseCancelled
+            }
+            await updateStatus(with: result.customerInfo)
         } catch {
             let subError = SubscriptionError.purchaseFailed(error.localizedDescription)
             self.error = subError
@@ -90,13 +75,11 @@ class SubscriptionManager: ObservableObject {
     
     func restorePurchases() async {
         isLoading = true
+        error = nil
         
         do {
-            // TODO: Restore purchases via StoreKit 2
-            // try await AppStore.sync()
-            
-            await updateEntitlements()
-            
+            let customerInfo = try await Purchases.shared.restorePurchases()
+            await updateStatus(with: customerInfo)
         } catch {
             self.error = .restoreFailed(error.localizedDescription)
         }
@@ -110,36 +93,46 @@ class SubscriptionManager: ObservableObject {
         return entitlements.contains(entitlement)
     }
     
-    func requiresSubscription(for feature: String) -> Bool {
-        // TODO: Implement feature-to-entitlement mapping
-        return subscriptionStatus == .free
+    var isPremium: Bool {
+        switch subscriptionStatus {
+        case .subscribed: return true
+        default: return false
+        }
     }
     
     // MARK: - Private Methods
     
-    private func updateEntitlements() async {
-        // TODO: Check current subscriptions via StoreKit 2
-        // TODO: Sync with backend for cross-platform entitlements
-        // TODO: Update local entitlements set
-        
-        // Placeholder: Grant free tier by default
-        subscriptionStatus = .free
-        entitlements = [.basicFeatures]
-    }
-    
-    private func listenForTransactions() -> Task<Void, Error> {
-        return Task.detached {
-            // TODO: Listen for transaction updates
-            // for await result in Transaction.updates {
-            //     await self.handleTransaction(result)
-            // }
+    private func checkSubscriptionStatus() async {
+        do {
+            let customerInfo = try await Purchases.shared.customerInfo()
+            await updateStatus(with: customerInfo)
+        } catch {
+            print("❌ Failed to fetch customer info: \(error)")
         }
     }
     
-    private func handleTransaction(_ result: VerificationResult<StoreKit.Transaction>) async {
-        // TODO: Verify and process transaction
-        // TODO: Update entitlements
-        // TODO: Sync with backend
+    private func updateStatus(with customerInfo: CustomerInfo) async {
+        // Entitlement ID should match your RevenueCat dashboard (usually "premium")
+        let entitlementID = "premium"
+        
+        if let entitlement = customerInfo.entitlements[entitlementID], entitlement.isActive {
+            subscriptionStatus = .subscribed(tier: .premium)
+            // Example entitlements granted with premium
+            entitlements = [.basicFeatures, .unlimitedAccess, .prioritySupport]
+        } else {
+            subscriptionStatus = .free
+            entitlements = [.basicFeatures]
+        }
+    }
+}
+
+// MARK: - PurchasesDelegate
+
+extension SubscriptionManager: PurchasesDelegate {
+    func purchases(_ purchases: Purchases, receivedUpdated customerInfo: CustomerInfo) {
+        Task {
+            await updateStatus(with: customerInfo)
+        }
     }
 }
 
@@ -153,20 +146,13 @@ enum SubscriptionStatus: Equatable {
 }
 
 enum SubscriptionTier: String {
-    case monthly = "monthly"
-    case yearly = "yearly"
-    case lifetime = "lifetime"
+    case premium = "premium"
 }
 
 enum Entitlement: String, Hashable {
     case basicFeatures
-    case unlimitedMessages
+    case unlimitedAccess
     case prioritySupport
-    case advancedModels
-    case offlineMode
-    case customization
-    
-    // TODO: Add more entitlements as needed
 }
 
 // MARK: - Subscription Error
@@ -175,21 +161,14 @@ enum SubscriptionError: LocalizedError {
     case productLoadFailed(String)
     case purchaseFailed(String)
     case restoreFailed(String)
-    case verificationFailed
-    case cancelled
+    case purchaseCancelled
     
     var errorDescription: String? {
         switch self {
-        case .productLoadFailed(let message):
-            return "Failed to load products: \(message)"
-        case .purchaseFailed(let message):
-            return "Purchase failed: \(message)"
-        case .restoreFailed(let message):
-            return "Restore failed: \(message)"
-        case .verificationFailed:
-            return "Failed to verify purchase"
-        case .cancelled:
-            return "Purchase was cancelled"
+        case .productLoadFailed(let message): return "Failed to load products: \(message)"
+        case .purchaseFailed(let message): return "Purchase failed: \(message)"
+        case .restoreFailed(let message): return "Restore failed: \(message)"
+        case .purchaseCancelled: return "Purchase was cancelled"
         }
     }
 }

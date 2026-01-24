@@ -7,9 +7,11 @@
 
 import Foundation
 import SwiftUI
+import FirebaseAuth
+import GoogleSignIn
 
 /// Manages authentication state and operations
-/// Supports anonymous auth by default, with extensibility for Apple Sign In, etc.
+/// Supports anonymous auth by default, with extensibility for Apple and Google Sign In.
 @MainActor
 class AuthManager: ObservableObject {
     // MARK: - Published Properties
@@ -22,70 +24,91 @@ class AuthManager: ObservableObject {
     // MARK: - Initialization
     
     init() {
-        // Empty init - call initialize() to start async setup
+        // Set up Firebase Auth state listener
+        Auth.auth().addStateDidChangeListener { [weak self] _, firebaseUser in
+            Task { @MainActor in
+                if let firebaseUser = firebaseUser {
+                    self?.handleAuthStateChanged(firebaseUser: firebaseUser)
+                } else {
+                    self?.currentUser = nil
+                    self?.isAuthenticated = false
+                }
+            }
+        }
     }
     
     func initialize() async {
         isInitializing = true
         
-        // TODO: Check for existing session
-        // TODO: Restore user from UserDefaults or Keychain
-        // TODO: Validate session with backend
-        
-        // Simulate initialization
-        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
-        
-        // For now, auto-authenticate anonymously
-        await signInAnonymously()
+        // Check if user is already signed in
+        if let firebaseUser = Auth.auth().currentUser {
+            handleAuthStateChanged(firebaseUser: firebaseUser)
+        } else {
+            // Auto sign in anonymously if no session exists
+            await signInAnonymously()
+        }
         
         isInitializing = false
     }
     
+    private func handleAuthStateChanged(firebaseUser: FirebaseAuth.User) {
+        currentUser = User(
+            id: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName ?? "User",
+            isAnonymous: firebaseUser.isAnonymous
+        )
+        isAuthenticated = true
+        error = nil
+    }
+    
     // MARK: - Authentication Methods
     
-    /// Sign in anonymously (default auth method)
+    /// Sign in anonymously
     func signInAnonymously() async {
         do {
-            // TODO: Implement Firebase anonymous auth
-            // TODO: Create backend user record
-            // TODO: Store session token
-            
-            // Placeholder implementation
-            let anonymousUser = User(
-                id: UUID().uuidString,
-                email: nil,
-                displayName: "Anonymous User",
-                isAnonymous: true
-            )
-            
-            currentUser = anonymousUser
-            isAuthenticated = true
-            error = nil
-            
+            _ = try await Auth.auth().signInAnonymously()
         } catch {
             self.error = .signInFailed(error.localizedDescription)
         }
     }
     
-    /// Sign in with Apple
+    /// Sign in with Google
+    func signInWithGoogle() async throws {
+        guard let windowScene = await UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            throw AuthError.signInFailed("Could not find root view controller")
+        }
+        
+        do {
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+            let user = result.user
+            
+            guard let idToken = user.idToken?.tokenString else {
+                throw AuthError.signInFailed("Google ID Token missing")
+            }
+            
+            let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: user.accessToken.tokenString)
+            _ = try await Auth.auth().signIn(with: credential)
+            
+        } catch {
+            self.error = .signInFailed(error.localizedDescription)
+            throw error
+        }
+    }
+    
+    /// Sign in with Apple (Placeholder for implementation)
     func signInWithApple() async {
-        // TODO: Implement Apple Sign In
-        // TODO: Exchange Apple credential for backend token
-        // TODO: Link anonymous account if needed
+        // Implementation typically involves ASAuthorizationAppleIDButton and delegate
         error = .notImplemented
     }
     
     /// Sign out current user
     func signOut() async {
         do {
-            // TODO: Clear Firebase session
-            // TODO: Clear local storage
-            // TODO: Revoke backend tokens
-            
+            try Auth.auth().signOut()
             currentUser = nil
             isAuthenticated = false
-            error = nil
-            
         } catch {
             self.error = .signOutFailed(error.localizedDescription)
         }
@@ -93,19 +116,18 @@ class AuthManager: ObservableObject {
     
     // MARK: - Account Management
     
-    /// Upgrade anonymous account to permanent account
-    func upgradeAnonymousAccount() async {
-        // TODO: Implement account upgrade flow
-        // TODO: Link anonymous account to Apple Sign In
-        error = .notImplemented
+    func deleteAccount() async {
+        do {
+            try await Auth.auth().currentUser?.delete()
+            signOutTab()
+        } catch {
+            self.error = .signOutFailed(error.localizedDescription)
+        }
     }
     
-    /// Delete current user account
-    func deleteAccount() async {
-        // TODO: Implement account deletion
-        // TODO: Delete all user data from backend
-        // TODO: Remove local data
-        error = .notImplemented
+    private func signOutTab() {
+        currentUser = nil
+        isAuthenticated = false
     }
 }
 
@@ -116,23 +138,17 @@ struct User: Identifiable, Codable {
     let email: String?
     let displayName: String?
     let isAnonymous: Bool
-    let createdAt: Date
-    let lastSignInAt: Date
     
     init(
         id: String,
         email: String? = nil,
         displayName: String? = nil,
-        isAnonymous: Bool = false,
-        createdAt: Date = Date(),
-        lastSignInAt: Date = Date()
+        isAnonymous: Bool = false
     ) {
         self.id = id
         self.email = email
         self.displayName = displayName
         self.isAnonymous = isAnonymous
-        self.createdAt = createdAt
-        self.lastSignInAt = lastSignInAt
     }
 }
 
@@ -142,21 +158,12 @@ enum AuthError: LocalizedError {
     case signInFailed(String)
     case signOutFailed(String)
     case notImplemented
-    case invalidCredentials
-    case networkError
     
     var errorDescription: String? {
         switch self {
-        case .signInFailed(let message):
-            return "Sign in failed: \(message)"
-        case .signOutFailed(let message):
-            return "Sign out failed: \(message)"
-        case .notImplemented:
-            return "This feature is not yet implemented"
-        case .invalidCredentials:
-            return "Invalid credentials"
-        case .networkError:
-            return "Network error occurred"
+        case .signInFailed(let message): return "Sign in failed: \(message)"
+        case .signOutFailed(let message): return "Sign out failed: \(message)"
+        case .notImplemented: return "This feature is not yet implemented"
         }
     }
 }

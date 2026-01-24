@@ -1,0 +1,31 @@
+//
+//  Config.swift
+//  boilerplate
+//
+//  Configuration constants for the app
+//
+
+import Foundation
+
+struct Config {
+    // MARK: - Slack Configuration
+    
+    /// Slack webhook URL for feedback submissions
+    /// To set up:
+    /// 1. Go to https://api.slack.com/apps
+    /// 2. Create a new app or select existing
+    /// 3. Enable "Incoming Webhooks"
+    /// 4. Create a webhook for your desired channel
+    /// 5. Copy the webhook URL and paste it below
+    static let slackWebhookURL = "YOUR_SLACK_WEBHOOK_URL_HERE"
+    
+    // MARK: - Support
+    
+    static let supportEmail = "support@example.com"
+    
+    // MARK: - App Info
+    
+    static let appName = "App Name"
+    static let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+    static let buildNumber = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+}
