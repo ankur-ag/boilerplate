@@ -15,9 +15,9 @@ class ImageKitService {
     private let urlEndpoint: String
     
     private init() {
-        self.publicKey = ProcessInfo.processInfo.environment["IMAGEKIT_PUBLIC_KEY"] ?? ""
-        self.privateKey = ProcessInfo.processInfo.environment["IMAGEKIT_PRIVATE_KEY"] ?? ""
-        self.urlEndpoint = ProcessInfo.processInfo.environment["IMAGEKIT_URL_ENDPOINT"] ?? ""
+        self.publicKey = SecretConfig.imageKitPublicKey
+        self.privateKey = SecretConfig.imageKitPrivateKey
+        self.urlEndpoint = SecretConfig.imageKitURL
     }
     
     var isConfigured: Bool {

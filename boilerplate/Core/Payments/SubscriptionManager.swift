@@ -29,6 +29,7 @@ class SubscriptionManager: NSObject, ObservableObject {
     
     /// Must be called AFTER Purchases.configure()
     func initialize() {
+        Purchases.logLevel = .debug
         Purchases.shared.delegate = self
         Task {
             await checkSubscriptionStatus()

@@ -19,5 +19,25 @@
 	<string>$(REVENUECAT_API_KEY)</string>
 	<key>GEMINI_API_KEY</key>
 	<string>$(GEMINI_API_KEY)</string>
+	<key>OPENAI_API_KEY</key>
+	<string>$(OPENAI_API_KEY)</string>
+	<key>REPLICATE_API_TOKEN</key>
+	<string>$(REPLICATE_API_TOKEN)</string>
+	<key>IMAGEKIT_PRIVATE_KEY</key>
+	<string>$(IMAGEKIT_PRIVATE_KEY)</string>
+	<key>IMAGEKIT_PUBLIC_KEY</key>
+	<string>$(IMAGEKIT_PUBLIC_KEY)</string>
+	<key>IMAGEKIT_URL_ENDPOINT</key>
+	<string>$(IMAGEKIT_URL_ENDPOINT)</string>
+	<key>R2_ACCOUNT_ID</key>
+	<string>$(R2_ACCOUNT_ID)</string>
+	<key>R2_BUCKET_NAME</key>
+	<string>$(R2_BUCKET_NAME)</string>
+	<key>R2_ACCESS_KEY_ID</key>
+	<string>$(R2_ACCESS_KEY_ID)</string>
+	<key>R2_SECRET_ACCESS_KEY</key>
+	<string>$(R2_SECRET_ACCESS_KEY)</string>
+	<key>R2_PUBLIC_URL_PREFIX</key>
+	<string>$(R2_PUBLIC_URL_PREFIX)</string>
 </dict>
 </plist>
