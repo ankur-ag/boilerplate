@@ -6,6 +6,8 @@
 //
 
 import Foundation
+import FirebaseAnalytics
+import SwiftUI
 
 /// Protocol for analytics providers (Firebase, Mixpanel, etc.)
 protocol AnalyticsProvider {
@@ -14,9 +16,41 @@ protocol AnalyticsProvider {
     func setUserId(_ userId: String?)
 }
 
+// MARK: - Firebase Analytics Provider
+
+class FirebaseAnalyticsProvider: AnalyticsProvider {
+    func logEvent(_ event: String, parameters: [String: Any]?) {
+        Analytics.logEvent(event, parameters: parameters)
+        
+        #if DEBUG
+        if let params = parameters, !params.isEmpty {
+            print("📊 Firebase Analytics: \(event) - \(params)")
+        } else {
+            print("📊 Firebase Analytics: \(event)")
+        }
+        #endif
+    }
+    
+    func setUserProperty(_ value: String, forName name: String) {
+        Analytics.setUserProperty(value, forName: name)
+        
+        #if DEBUG
+        print("📊 Firebase User Property: \(name) = \(value)")
+        #endif
+    }
+    
+    func setUserId(_ userId: String?) {
+        Analytics.setUserID(userId)
+        
+        #if DEBUG
+        print("📊 Firebase User ID: \(userId ?? "nil")")
+        #endif
+    }
+}
+
 /// Centralized analytics manager
 /// Supports multiple analytics providers simultaneously
-class AnalyticsManager {
+class AnalyticsManager: ObservableObject {
     // MARK: - Properties
     
     private var providers: [AnalyticsProvider] = []
@@ -26,7 +60,12 @@ class AnalyticsManager {
     
     init(isEnabled: Bool = true) {
         self.isEnabled = isEnabled
-        // TODO: Initialize analytics providers (Firebase, etc.)
+        
+        // Initialize Firebase Analytics provider
+        let firebaseProvider = FirebaseAnalyticsProvider()
+        providers.append(firebaseProvider)
+        
+        print("✅ Analytics initialized with Firebase")
     }
     
     // MARK: - Provider Management

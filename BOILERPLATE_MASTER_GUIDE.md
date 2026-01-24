@@ -51,6 +51,13 @@ We have pre-configured the `.pbxproj` to avoid the "Upload Symbols Failed" error
 - `DEBUG_INFORMATION_FORMAT` is set to `dwarf-with-dsym`.
 - `STRIP_INSTALLED_PRODUCT` is set to `YES` for Release.
 
+### 📊 Firebase Analytics Debugging
+To see analytics events in real-time in the Firebase Console DebugView:
+1. **Edit Scheme** (`⌘<`) -> **Run** -> **Arguments**.
+2. In **Arguments Passed On Launch**, click `+` and add:
+   - `-FIRDebugEnabled`
+3. This will enable real-time event reporting for your debug builds.
+
 ---
 
 ## 3. Implementation Details
