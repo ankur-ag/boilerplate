@@ -102,10 +102,9 @@ struct OnboardingView: View {
                     .padding(.horizontal, DesignSystem.Spacing.lg)
                     .padding(.bottom, DesignSystem.Spacing.xl)
                     
-                    // Continue with Apple Button
-                    VStack(spacing: DesignSystem.Spacing.lg) {
-                        #if DEBUG
-                        // Real Apple Sign In (for testing)
+                    // Authentication Buttons
+                    VStack(spacing: DesignSystem.Spacing.md) {
+                        // Apple Sign In
                         SignInWithAppleButton(
                             .signIn,
                             onRequest: { request in
@@ -124,13 +123,47 @@ struct OnboardingView: View {
                         .opacity(viewModel.agreedToTerms ? 1.0 : 0.5)
                         .padding(.horizontal, DesignSystem.Spacing.lg)
                         
+                        // Google Sign In
+                        Button(action: {
+                            Task {
+                                await viewModel.signInWithGoogle(authManager: authManager)
+                            }
+                        }) {
+                            HStack(spacing: 12) {
+                                Image("google_logo") // Assuming logo is in assets or using a fallback
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .frame(width: 20, height: 20)
+                                    // Fallback if image doesn't exist
+                                    .background(
+                                        Group {
+                                            if UIImage(named: "google_logo") == nil {
+                                                Circle().fill(.white)
+                                            }
+                                        }
+                                    )
+                                
+                                Text("Continue with Google")
+                                    .font(.system(size: 19, weight: .medium))
+                                    .foregroundColor(.black)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(Color.white)
+                            .cornerRadius(DesignSystem.CornerRadius.lg)
+                        }
+                        .disabled(!viewModel.agreedToTerms || viewModel.isLoading)
+                        .opacity(viewModel.agreedToTerms ? 1.0 : 0.5)
+                        .padding(.horizontal, DesignSystem.Spacing.lg)
+                        
+                        #if DEBUG
                         // DEVELOPER BYPASS: Quick skip for simulator or rapid testing
                         Button(action: {
                             Task {
                                 await viewModel.signInAndContinue(authManager: authManager)
                             }
                         }) {
-                            Text("Developer Bypass (Skip Apple ID)")
+                            Text("Developer Bypass (Skip Login)")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(DesignSystem.Colors.textPrimary)
                                 .padding(.vertical, 8)
@@ -140,37 +173,6 @@ struct OnboardingView: View {
                         }
                         .disabled(!viewModel.agreedToTerms || viewModel.isLoading)
                         .padding(.horizontal, DesignSystem.Spacing.lg)
-                        
-                        #else
-                        // PRODUCTION: Real Apple Sign In
-                        SignInWithAppleButton(
-                            .signIn,
-                            onRequest: { request in
-                                viewModel.configureAppleSignIn(request)
-                            },
-                            onCompletion: { result in
-                                Task {
-                                    await viewModel.handleAppleSignIn(result, authManager: authManager)
-                                }
-                            }
-                        )
-                        .signInWithAppleButtonStyle(.white)
-                        .frame(height: 56)
-                        .cornerRadius(DesignSystem.CornerRadius.lg)
-                        .disabled(!viewModel.agreedToTerms || viewModel.isLoading)
-                        .opacity(viewModel.agreedToTerms ? 1.0 : 0.5)
-                        .padding(.horizontal, DesignSystem.Spacing.lg)
-                        .overlay(
-                            Group {
-                                if !viewModel.agreedToTerms || viewModel.isLoading {
-                                    Color.black.opacity(0.5)
-                                        .cornerRadius(DesignSystem.CornerRadius.lg)
-                                        .padding(.horizontal, DesignSystem.Spacing.lg)
-                                        .allowsHitTesting(false)
-                                }
-                            }
-                        )
-                        .padding(.bottom, DesignSystem.Spacing.xxl)
                         #endif
                     }
                     .padding(.bottom, DesignSystem.Spacing.xxl)

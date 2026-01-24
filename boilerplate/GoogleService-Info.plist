@@ -2,18 +2,22 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>CLIENT_ID</key>
+	<string>940064369625-phn6gv8k86tju9ub1kedlo0csj4ros2r.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.940064369625-phn6gv8k86tju9ub1kedlo0csj4ros2r</string>
 	<key>API_KEY</key>
-	<string>AIzaSyCMQ1J6CVV5ms964G8b9RaVe2insFgY-iM</string>
+	<string>AIzaSyDlMI0EhKndDthoQsD4wmHNyQMHcXgbC9c</string>
 	<key>GCM_SENDER_ID</key>
-	<string>748582106322</string>
+	<string>940064369625</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
-	<string>hyre.boilerplate</string>
+	<string>com.hyre.posterized</string>
 	<key>PROJECT_ID</key>
-	<string>roast-gpt-99a34</string>
+	<string>posterized-6c80b</string>
 	<key>STORAGE_BUCKET</key>
-	<string>roast-gpt-99a34.firebasestorage.app</string>
+	<string>posterized-6c80b.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
 	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
@@ -25,6 +29,6 @@
 	<key>IS_SIGNIN_ENABLED</key>
 	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:748582106322:ios:0bb1496993778d9a04a90b</string>
+	<string>1:940064369625:ios:fc8f411228746203f3c7c8</string>
 </dict>
 </plist>

@@ -99,6 +99,32 @@ class OnboardingViewModel: ObservableObject {
         
         isLoading = false
     }
+    
+    // MARK: - Google Sign In
+    
+    func signInWithGoogle(authManager: AuthManager) async {
+        guard agreedToTerms else { return }
+        
+        isLoading = true
+        error = nil
+        
+        analyticsManager.logEvent(.signInStarted)
+        
+        do {
+            try await authManager.signInWithGoogle()
+            
+            analyticsManager.logEvent(.signInCompleted(method: "google"))
+            analyticsManager.logEvent(.onboardingCompleted)
+            
+            // Navigate to tailor view
+            showTailor = true
+            
+        } catch {
+            self.error = error
+        }
+        
+        isLoading = false
+    }
 }
 
 // MARK: - Tailor View Model (Sports Team Selection)

@@ -8,6 +8,7 @@
 import SwiftUI
 import FirebaseCore
 import RevenueCat
+import GoogleSignIn
 
 @main
 struct BoilerplateApp: App {
@@ -82,6 +83,9 @@ struct BoilerplateApp: App {
                 .environmentObject(usageManager)
                 .environmentObject(imageGenerationManager)
                 .environmentObject(analyticsManager)
+                .onOpenURL { url in
+                    GIDSignIn.sharedInstance.handle(url)
+                }
         }
     }
 }

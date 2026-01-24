@@ -8,6 +8,7 @@
 import Foundation
 import SwiftUI
 import FirebaseAuth
+import GoogleSignIn
 
 /// Manages authentication state and operations
 /// Supports anonymous auth by default, with extensibility for Apple Sign In, etc.
@@ -80,10 +81,37 @@ class AuthManager: ObservableObject {
     
     /// Sign in with Apple
     func signInWithApple() async {
-        // TODO: Implement Apple Sign In
-        // TODO: Exchange Apple credential for backend token
-        // TODO: Link anonymous account if needed
+        // Exchange Apple credential for Firebase token
+        // Implementation handled in OnboardingViewModel via handleAppleSignIn
+        // This method remains as placeholder for potential direct call
         error = .notImplemented
+    }
+    
+    /// Sign in with Google
+    func signInWithGoogle() async throws {
+        guard let windowScene = await UIApplication.shared.connectedScenes.first as? UIWindowScene,
+              let rootViewController = windowScene.windows.first?.rootViewController else {
+            throw AuthError.signInFailed("Could not find root view controller")
+        }
+        
+        do {
+            let result = try await GIDSignIn.sharedInstance.signIn(withPresenting: rootViewController)
+            let user = result.user
+            
+            guard let idToken = user.idToken?.tokenString else {
+                throw AuthError.signInFailed("Google ID Token missing")
+            }
+            
+            let credential = GoogleAuthProvider.credential(withIDToken: idToken, accessToken: user.accessToken.tokenString)
+            
+            let authResult = try await Auth.auth().signIn(with: credential)
+            print("✅ Google sign-in successful: \(authResult.user.uid)")
+            
+        } catch {
+            print("❌ Google sign-in failed: \(error.localizedDescription)")
+            self.error = .signInFailed(error.localizedDescription)
+            throw error
+        }
     }
     
     /// Sign out current user
