@@ -14,6 +14,7 @@
 		92D5A54E2F2318E900226001 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = 92D5A54D2F2318E900226001 /* RevenueCatUI */; };
 		92D5A5512F2369F200226001 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 92D5A5502F2369F200226001 /* GoogleSignIn */; };
 		92D5A5532F2369F200226001 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 92D5A5522F2369F200226001 /* GoogleSignInSwift */; };
+		92CF196A2F14CD83005E579B /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 92CF19692F14CD83005E579B /* FirebaseAnalytics */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -82,6 +83,7 @@
 				92D5A54E2F2318E900226001 /* RevenueCatUI in Frameworks */,
 				92CF19682F14CD83005E579B /* FirebaseStorage in Frameworks */,
 				92D5A5512F2369F200226001 /* GoogleSignIn in Frameworks */,
+				92CF196A2F14CD83005E579B /* FirebaseAnalytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -149,6 +151,7 @@
 				92D5A54D2F2318E900226001 /* RevenueCatUI */,
 				92D5A5502F2369F200226001 /* GoogleSignIn */,
 				92D5A5522F2369F200226001 /* GoogleSignInSwift */,
+				92CF19692F14CD83005E579B /* FirebaseAnalytics */,
 			);
 			productName = boilerplate;
 			productReference = 92CF18BD2F148F0D005E579B /* boilerplate.app */;
@@ -665,6 +668,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 92D5A54F2F2369F200226001 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
 			productName = GoogleSignInSwift;
+		};
+		92CF19692F14CD83005E579B /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 92CF19622F14CD83005E579B /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
