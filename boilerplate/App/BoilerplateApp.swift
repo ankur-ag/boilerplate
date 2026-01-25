@@ -42,9 +42,6 @@ struct BoilerplateApp: App {
         if !revenueCatKey.isEmpty {
             Purchases.configure(withAPIKey: revenueCatKey)
             print("✅ RevenueCat configured")
-            
-            // Safe to initialize manager now
-            subscriptionManager.initialize()
         } else {
             print("❌ RevenueCat API Key missing - App may crash if subscription features are accessed")
         }
@@ -58,6 +55,10 @@ struct BoilerplateApp: App {
                 .environmentObject(subscriptionManager)
                 .environmentObject(featureFlagManager)
                 .environmentObject(appConfigManager)
+                .task {
+                    // Safe to initialize manager now that view lifecycle has started
+                    subscriptionManager.initialize()
+                }
                 .onOpenURL { url in
                     // Handle Google Sign In redirect
                     GIDSignIn.sharedInstance.handle(url)
