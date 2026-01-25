@@ -159,8 +159,8 @@ class SubscriptionManager: NSObject, ObservableObject {
 // MARK: - PurchasesDelegate
 
 extension SubscriptionManager: PurchasesDelegate {
-    func purchases(_ purchases: Purchases, receivedUpdated customerInfo: CustomerInfo) {
-        Task {
+    nonisolated func purchases(_ purchases: Purchases, receivedUpdated customerInfo: CustomerInfo) {
+        Task { @MainActor in
             await updateStatus(with: customerInfo)
         }
     }

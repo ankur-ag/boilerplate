@@ -26,7 +26,7 @@ class AuthManager: ObservableObject {
     
     init() {
         // Set up Firebase Auth state listener
-        Auth.auth().addStateDidChangeListener { [weak self] _, firebaseUser in
+        _ = Auth.auth().addStateDidChangeListener { [weak self] _, firebaseUser in
             Task { @MainActor in
                 if let firebaseUser = firebaseUser {
                     self?.handleAuthStateChanged(firebaseUser: firebaseUser)
@@ -75,7 +75,7 @@ class AuthManager: ObservableObject {
     
     /// Sign in with Google
     func signInWithGoogle() async throws {
-        guard let windowScene = await UIApplication.shared.connectedScenes.first as? UIWindowScene,
+        guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let rootViewController = windowScene.windows.first?.rootViewController else {
             throw AuthError.signInFailed("Could not find root view controller")
         }
