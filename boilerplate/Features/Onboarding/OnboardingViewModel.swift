@@ -50,8 +50,12 @@ class OnboardingViewModel: ObservableObject {
         }
     }
     
-    func completeOnboarding(_ appConfigManager: AppConfigManager) {
-        appConfigManager.completeOnboarding()
+    func completeOnboarding(_ appConfigManager: AppConfigManager, authManager: AuthManager) {
+        Task {
+            // Sign in anonymously when getting started
+            await authManager.signInAnonymously()
+            appConfigManager.completeOnboarding()
+        }
     }
 }
 

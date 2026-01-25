@@ -9,6 +9,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     @StateObject private var viewModel = OnboardingViewModel()
+    @EnvironmentObject private var authManager: AuthManager
     @EnvironmentObject private var appConfigManager: AppConfigManager
     
     var body: some View {
@@ -39,7 +40,7 @@ struct OnboardingView: View {
             
             Button(viewModel.isLastPage ? "Get Started" : "Next") {
                 if viewModel.isLastPage {
-                    viewModel.completeOnboarding(appConfigManager)
+                    viewModel.completeOnboarding(appConfigManager, authManager: authManager)
                 } else {
                     viewModel.nextPage()
                 }

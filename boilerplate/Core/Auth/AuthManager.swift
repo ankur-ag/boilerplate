@@ -44,8 +44,7 @@ class AuthManager: ObservableObject {
         if let firebaseUser = Auth.auth().currentUser {
             handleAuthStateChanged(firebaseUser: firebaseUser)
         } else {
-            // Auto sign in anonymously if no session exists
-            await signInAnonymously()
+            print("ℹ️ No active session. Waiting for user interaction.")
         }
         
         isInitializing = false
@@ -106,10 +105,21 @@ class AuthManager: ObservableObject {
     /// Sign out current user
     func signOut() async {
         do {
+            // 1. Sign out from Firebase
             try Auth.auth().signOut()
+            
+            // 2. Sign out from RevenueCat
+            _ = try? await Purchases.shared.logOut()
+            
+            // 3. Reset local state
             currentUser = nil
             isAuthenticated = false
+            error = nil
+            
+            print("✅ Sign-out successful")
+            
         } catch {
+            print("❌ Sign-out failed: \(error.localizedDescription)")
             self.error = .signOutFailed(error.localizedDescription)
         }
     }

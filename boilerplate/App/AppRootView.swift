@@ -22,9 +22,7 @@ struct AppRootView: View {
             case .authenticated:
                 MainTabView()
             case .unauthenticated:
-                // TODO: Add authentication view when needed
-                // For now, support anonymous auth by default
-                MainTabView()
+                OnboardingView()
             }
         }
         .task {
