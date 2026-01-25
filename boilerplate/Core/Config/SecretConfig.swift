@@ -30,6 +30,10 @@ enum SecretConfig {
         let key = value(for: "REVENUECAT_API_KEY")
         return key.isEmpty ? "appl_tAGaGojvSDcCIzzbSzPgyJbikfm" : key
     }
+    static var rcEntitlementID: String {
+        let id = value(for: "RC_ENTITLEMENT_ID")
+        return id.isEmpty ? "premium" : id
+    }
     
     // ImageKit
     static var imageKitPublicKey: String { value(for: "IMAGEKIT_PUBLIC_KEY") }

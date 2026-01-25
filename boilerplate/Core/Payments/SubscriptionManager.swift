@@ -121,15 +121,16 @@ class SubscriptionManager: NSObject, ObservableObject {
         let activeEntitlements = customerInfo.entitlements.active.keys
         print("👤 Customer Info updated. Active entitlements: \(activeEntitlements)")
         
-        // Entitlement ID should match your RevenueCat dashboard (usually "premium")
-        let entitlementID = "premium"
+        // Entitlement ID should match your RevenueCat dashboard
+        let entitlementID = SecretConfig.rcEntitlementID
         
         if let entitlement = customerInfo.entitlements[entitlementID], entitlement.isActive {
-            setPremiumStatus()
-            print("✅ Premium entitlement is active")
-        } else if !customerInfo.entitlements.active.isEmpty {
-            // Fallback: If they have ANY active entitlement, they are likely premium
-            setPremiumStatus()
+            let tier = determineTier(from: entitlement)
+            setSubscribedStatus(tier: tier)
+            print("✅ Premium entitlement is active: \(tier.rawValue)")
+        } else if let firstActive = customerInfo.entitlements.active.values.first {
+            let tier = determineTier(from: firstActive)
+            setSubscribedStatus(tier: tier)
             print("✅ User has active entitlements: \(activeEntitlements)")
         } else {
             subscriptionStatus = .free
@@ -138,8 +139,18 @@ class SubscriptionManager: NSObject, ObservableObject {
         }
     }
     
-    private func setPremiumStatus() {
-        subscriptionStatus = .subscribed(tier: .premium)
+    private func determineTier(from entitlement: EntitlementInfo) -> SubscriptionTier {
+        let productID = entitlement.productIdentifier.lowercased()
+        
+        if productID.contains("lifetime") { return .lifetime }
+        if productID.contains("annual") || productID.contains("yearly") { return .annual }
+        if productID.contains("monthly") { return .monthly }
+        
+        return .premium
+    }
+    
+    private func setSubscribedStatus(tier: SubscriptionTier) {
+        subscriptionStatus = .subscribed(tier: tier)
         // Example entitlements granted with premium
         entitlements = [.basicFeatures, .unlimitedAccess, .prioritySupport]
     }
@@ -166,6 +177,9 @@ enum SubscriptionStatus: Equatable {
 
 enum SubscriptionTier: String {
     case premium = "premium"
+    case monthly = "monthly"
+    case annual = "annual"
+    case lifetime = "lifetime"
 }
 
 enum Entitlement: String, Hashable {
