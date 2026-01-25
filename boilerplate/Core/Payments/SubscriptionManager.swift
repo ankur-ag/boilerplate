@@ -117,17 +117,31 @@ class SubscriptionManager: NSObject, ObservableObject {
     }
     
     private func updateStatus(with customerInfo: CustomerInfo) async {
+        // Log active entitlements for debugging
+        let activeEntitlements = customerInfo.entitlements.active.keys
+        print("👤 Customer Info updated. Active entitlements: \(activeEntitlements)")
+        
         // Entitlement ID should match your RevenueCat dashboard (usually "premium")
         let entitlementID = "premium"
         
         if let entitlement = customerInfo.entitlements[entitlementID], entitlement.isActive {
-            subscriptionStatus = .subscribed(tier: .premium)
-            // Example entitlements granted with premium
-            entitlements = [.basicFeatures, .unlimitedAccess, .prioritySupport]
+            setPremiumStatus()
+            print("✅ Premium entitlement is active")
+        } else if !customerInfo.entitlements.active.isEmpty {
+            // Fallback: If they have ANY active entitlement, they are likely premium
+            setPremiumStatus()
+            print("✅ User has active entitlements: \(activeEntitlements)")
         } else {
             subscriptionStatus = .free
             entitlements = [.basicFeatures]
+            print("ℹ️ No active premium entitlement. Status: Free")
         }
+    }
+    
+    private func setPremiumStatus() {
+        subscriptionStatus = .subscribed(tier: .premium)
+        // Example entitlements granted with premium
+        entitlements = [.basicFeatures, .unlimitedAccess, .prioritySupport]
     }
 }
 
