@@ -9,6 +9,7 @@ import Foundation
 import SwiftUI
 import FirebaseAuth
 import GoogleSignIn
+import RevenueCat
 
 /// Manages authentication state and operations
 /// Supports anonymous auth by default, with extensibility for Apple and Google Sign In.
