@@ -149,7 +149,7 @@ private struct BoilerplatePackageCard: View {
     
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 Spacer(minLength: 0)
                 
                 Text(package.storeProduct.localizedTitle)
@@ -157,26 +157,14 @@ private struct BoilerplatePackageCard: View {
                     .foregroundColor(.primary)
                 
                 Text(package.storeProduct.localizedPriceString)
-                    .font(.system(size: 28, weight: .bold))
+                    .font(.system(size: 32, weight: .bold))
                     .foregroundColor(.primary)
                 
                 Text(package.packageType == .annual ? "/ year" : "/ month")
-                    .font(.caption)
+                    .font(.subheadline)
                     .foregroundColor(.secondary)
                 
                 Spacer(minLength: 0)
-                
-                Text(isSelected ? "SELECTED" : "SELECT")
-                    .font(.system(size: 12, weight: .black))
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 32)
-                    .background(isSelected ? Color.accentColor : Color.clear)
-                    .foregroundColor(isSelected ? .white : .accentColor)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(Color.accentColor, lineWidth: 2)
-                    )
-                    .cornerRadius(8)
             }
             .padding()
             .frame(width: 260, height: 150)
