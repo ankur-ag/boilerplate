@@ -14,202 +14,190 @@ struct PaywallView: View {
     @Environment(\.dismiss) private var dismiss
     
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 32) {
-                    // Header
-                    headerSection
-                    
-                    // Features
-                    featuresSection
-                    
-                    // Products
-                    productsSection
-                    
-                    // CTA
-                    ctaSection
-                    
-                    // Footer
-                    footerSection
-                }
-                .padding()
-            }
-            .navigationTitle("Premium")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Close") {
-                        dismiss()
+        ZStack {
+            Color(UIColor.systemBackground).ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Spacer()
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title2)
+                            .foregroundColor(.secondary)
                     }
-                }
-            }
-            .task {
-                await subscriptionManager.loadProducts()
-            }
-        }
-    }
-    
-    private var headerSection: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "crown.fill")
-                .font(.system(size: 60))
-                .foregroundColor(.yellow)
-            
-            Text("Unlock Premium")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-            
-            Text("Get unlimited access to all features")
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-        }
-    }
-    
-    private var featuresSection: some View {
-        VStack(spacing: 16) {
-            FeatureRow(icon: "infinity", title: "Unlimited Messages", description: "No daily limits")
-            FeatureRow(icon: "bolt.fill", title: "Advanced AI Models", description: "Access to latest models")
-            FeatureRow(icon: "star.fill", title: "Priority Support", description: "Get help faster")
-            FeatureRow(icon: "arrow.down.circle.fill", title: "Offline Mode", description: "Save conversations")
-        }
-    }
-    
-    private var productsSection: some View {
-        VStack(spacing: 12) {
-            if subscriptionManager.isLoading {
-                ProgressView()
                     .padding()
-            } else if subscriptionManager.availablePackages.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .font(.title)
-                        .foregroundColor(.yellow)
-                    Text("RevenueCat products not loaded.\nCheck dashboard or API key.")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
                 }
-                .padding()
-            } else {
-                ForEach(subscriptionManager.availablePackages, id: \.identifier) { package in
-                    PackageCard(package: package, isSelected: viewModel.selectedPackage?.identifier == package.identifier) {
-                        viewModel.selectedPackage = package
+                
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 24) {
+                        // Title
+                        VStack(spacing: 8) {
+                            Text("Upgrade to Premium")
+                                .font(.system(size: 28, weight: .bold))
+                                .multilineTextAlignment(.center)
+                            
+                            Text("Unlock all features and remove limits")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        
+                        // Features
+                        VStack(alignment: .leading, spacing: 16) {
+                            FeatureRow(icon: "checkmark.circle.fill", title: "Unlimited access to all features")
+                            FeatureRow(icon: "checkmark.circle.fill", title: "Access to latest AI models")
+                            FeatureRow(icon: "checkmark.circle.fill", title: "Priority response times")
+                            FeatureRow(icon: "checkmark.circle.fill", title: "Exclusive premium themes")
+                        }
+                        .padding(.horizontal)
+                        
+                        // Products Carousel
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 16) {
+                                if subscriptionManager.availablePackages.isEmpty {
+                                    ForEach(0..<2) { _ in
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .fill(Color.secondary.opacity(0.1))
+                                            .frame(width: 260, height: 150)
+                                            .overlay(Text("Loading...").foregroundColor(.secondary))
+                                    }
+                                } else {
+                                    ForEach(subscriptionManager.availablePackages, id: \.identifier) { package in
+                                        BoilerplatePackageCard(
+                                            package: package,
+                                            isSelected: viewModel.selectedPackage?.identifier == package.identifier
+                                        ) {
+                                            viewModel.selectedPackage = package
+                                        }
+                                    }
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                        .padding(.vertical, 8)
+                        
+                        // CTA
+                        VStack(spacing: 12) {
+                            Button(action: {
+                                Task {
+                                    await viewModel.purchaseSelected(using: subscriptionManager)
+                                }
+                            }) {
+                                if viewModel.isPurchasing {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    Text("CONTINUE")
+                                        .font(.headline)
+                                        .foregroundColor(.white)
+                                }
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Color.accentColor)
+                            .cornerRadius(12)
+                            .disabled(viewModel.selectedPackage == nil || viewModel.isPurchasing)
+                            
+                            Button("Restore Purchases") {
+                                Task { await subscriptionManager.restorePurchases() }
+                            }
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal)
+                        
+                        // Footer
+                        HStack(spacing: 16) {
+                            Link("Terms", destination: URL(string: "https://example.com/terms")!)
+                            Link("Privacy", destination: URL(string: "https://example.com/privacy")!)
+                        }
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.bottom, 20)
                     }
                 }
             }
         }
-    
-    private var ctaSection: some View {
-        VStack(spacing: 12) {
-            Button(action: {
-                Task {
-                    await viewModel.purchaseSelected(using: subscriptionManager)
-                }
-            }) {
-                if viewModel.isPurchasing {
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                        .tint(.white)
-                } else {
-                    Text("Subscribe Now")
-                        .fontWeight(.semibold)
-                }
+        .task {
+            await subscriptionManager.loadProducts()
+            if let first = subscriptionManager.availablePackages.first {
+                viewModel.selectedPackage = first
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 50)
-            .background(Color.accentColor)
-            .foregroundColor(.white)
-            .cornerRadius(12)
-            .disabled(viewModel.selectedPackage == nil || viewModel.isPurchasing)
-            
-            Button("Restore Purchases") {
-                Task {
-                    await subscriptionManager.restorePurchases()
-                }
-            }
-            .font(.subheadline)
-        }
-    }
-    
-    private var footerSection: some View {
-        VStack(spacing: 8) {
-            Text("Auto-renewable subscription. Cancel anytime.")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .multilineTextAlignment(.center)
-            
-            HStack(spacing: 16) {
-                Link("Terms", destination: URL(string: "https://example.com/terms")!)
-                Text("•")
-                Link("Privacy", destination: URL(string: "https://example.com/privacy")!)
-            }
-            .font(.caption)
-            .foregroundColor(.secondary)
         }
     }
 }
 
-// MARK: - Feature Row
-
 private struct FeatureRow: View {
     let icon: String
     let title: String
-    let description: String
     
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.title2)
-                .foregroundColor(.accentColor)
-                .frame(width: 32)
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                
-                Text(description)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            
+                .foregroundColor(.green)
+            Text(title)
+                .font(.subheadline)
             Spacer()
         }
     }
 }
 
-// MARK: - Package Card
-
-private struct PackageCard: View {
+private struct BoilerplatePackageCard: View {
     let package: Package
     let isSelected: Bool
     let onTap: () -> Void
     
     var body: some View {
         Button(action: onTap) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(package.storeProduct.localizedTitle)
-                        .font(.headline)
-                    
-                    Text(package.storeProduct.localizedDescription)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
+            VStack(spacing: 8) {
+                Spacer(minLength: 0)
                 
-                Spacer()
+                Text(package.storeProduct.localizedTitle)
+                    .font(.headline)
+                    .foregroundColor(.primary)
                 
                 Text(package.storeProduct.localizedPriceString)
-                    .font(.title3)
-                    .fontWeight(.semibold)
+                    .font(.system(size: 28, weight: .bold))
+                    .foregroundColor(.primary)
+                
+                Text(package.packageType == .annual ? "/ year" : "/ month")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                
+                Spacer(minLength: 0)
+                
+                Text(isSelected ? "SELECTED" : "SELECT")
+                    .font(.system(size: 12, weight: .black))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 32)
+                    .background(isSelected ? Color.accentColor : Color.clear)
+                    .foregroundColor(isSelected ? .white : .accentColor)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color.accentColor, lineWidth: 2)
+                    )
+                    .cornerRadius(8)
             }
             .padding()
-            .background(isSelected ? Color.accentColor.opacity(0.2) : Color.gray.opacity(0.1))
-            .cornerRadius(12)
+            .frame(width: 260, height: 150)
+            .background(Color(UIColor.secondarySystemBackground))
+            .cornerRadius(16)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
+                RoundedRectangle(cornerRadius: 16)
                     .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
             )
+            .overlay(alignment: .topTrailing) {
+                if package.packageType == .annual {
+                    Text("SAVE 20%")
+                        .font(.system(size: 10, weight: .black))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color.green)
+                        .clipShape(Capsule())
+                        .offset(x: -8, y: 8)
+                }
+            }
         }
         .buttonStyle(.plain)
     }

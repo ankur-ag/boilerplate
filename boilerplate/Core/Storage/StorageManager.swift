@@ -51,6 +51,18 @@ class StorageManager: StorageManaging {
         }
     }
     
+    func clearAll() throws {
+        // Clear UserDefaults
+        clear()
+        
+        // Clear all files in documents directory
+        let documentsURL = try getDocumentsDirectory()
+        let fileURLs = try fileManager.contentsOfDirectory(at: documentsURL, includingPropertiesForKeys: nil)
+        for fileURL in fileURLs {
+            try fileManager.removeItem(at: fileURL)
+        }
+    }
+    
     // MARK: - File Storage
     
     func saveToFile<T: Codable>(_ value: T, filename: String) throws {
@@ -92,4 +104,6 @@ enum StorageKeys {
     static let conversations = "conversations"
     static let appConfig = "app_config"
     static let subscriptionStatus = "subscription_status"
+    static let userPreferences = "user_preferences"
+    static let cacheData = "cache_data"
 }
