@@ -156,13 +156,16 @@ private struct BoilerplatePackageCard: View {
                     .font(.headline)
                     .foregroundColor(.primary)
                 
-                Text(package.storeProduct.localizedPriceString)
-                    .font(.system(size: 32, weight: .bold))
-                    .foregroundColor(.primary)
-                
-                Text(package.packageType == .annual ? "/ year" : "/ month")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
+                // Price & Period
+                VStack(spacing: 2) {
+                    Text(package.storeProduct.localizedPriceString)
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Text(package.packageType == .annual ? "/ year" : "/ month")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
                 
                 Spacer(minLength: 0)
             }
